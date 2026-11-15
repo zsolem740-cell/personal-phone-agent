@@ -161,13 +161,14 @@ class MainActivity : Activity() {
         showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
         updateMetrics()
-        if (savedInstanceState == null) handleSolarisShare(intent)
+        SolarisFeed.schedule(this)
+        if (savedInstanceState == null) handleIncomingIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleSolarisShare(intent)
+        handleIncomingIntent(intent)
     }
 
     override fun onResume() {
@@ -323,6 +324,7 @@ class MainActivity : Activity() {
             runCommand(getString(R.string.quick_command_settings))
         }
         findViewById<Button>(R.id.drawer_ai_settings).setOnClickListener { showAiSettings() }
+        findViewById<Button>(R.id.drawer_solaris).setOnClickListener { fetchAndInterpretSolaris() }
         findViewById<Button>(R.id.drawer_diagnostics).setOnClickListener {
             closeDrawer()
             showDiagnostics()
@@ -600,6 +602,66 @@ class MainActivity : Activity() {
 
     // ===== Solaris-összefoglaló fogadása megosztással =====
 
+    private fun handleIncomingIntent(incoming: Intent?) {
+        when (incoming?.action) {
+            SolarisFeed.ACTION_INTERPRET -> {
+                incoming.action = null
+                interpretLatestSolaris()
+            }
+            Intent.ACTION_SEND -> handleSolarisShare(incoming)
+        }
+    }
+
+    /** Értesítésre koppintás: a koppintás maga a jóváhagyás, nincs külön kérdés. */
+    private fun interpretLatestSolaris() {
+        SolarisFeed.cancelNotification(this)
+        showChat()
+        val snapshot = SolarisFeed.latest(this)
+        if (snapshot == null) {
+            appendAssistant(getString(R.string.solaris_feed_empty))
+            return
+        }
+        presentSolaris(
+            UUID.randomUUID().toString(), SolarisFeed.summaryId(snapshot), snapshot.updated,
+            snapshot.text, askFirst = false
+        )
+    }
+
+    /** Menügomb: azonnali letöltés, majd értelmezés. */
+    private fun fetchAndInterpretSolaris() {
+        closeDrawer()
+        showChat()
+        appendAssistant(getString(R.string.solaris_feed_fetching))
+        setOrbState(OrbState.THINK)
+        val traceId = UUID.randomUUID().toString()
+        Thread {
+            val result = SolarisFeed.fetch(applicationContext, traceId)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                setOrbState(OrbState.IDLE)
+                when (result) {
+                    is SolarisFeed.FetchResult.Success -> {
+                        SolarisFeed.cancelNotification(this)
+                        presentSolaris(
+                            traceId, SolarisFeed.summaryId(result.snapshot), result.snapshot.updated,
+                            result.snapshot.text, askFirst = false
+                        )
+                    }
+                    is SolarisFeed.FetchResult.Failure -> {
+                        val cached = SolarisFeed.latest(this)
+                        appendAssistant(getString(R.string.solaris_feed_failed))
+                        if (cached != null) {
+                            presentSolaris(
+                                traceId, SolarisFeed.summaryId(cached), cached.updated,
+                                cached.text, askFirst = false
+                            )
+                        }
+                    }
+                }
+            }
+        }.start()
+    }
+
     private fun handleSolarisShare(incoming: Intent?) {
         if (incoming?.action != Intent.ACTION_SEND || incoming.type?.startsWith("text/") != true) return
         // Egyszer dolgozzuk fel: forgatás vagy újraindítás ne indítsa újra.
@@ -629,11 +691,29 @@ class MainActivity : Activity() {
             summaryId = summaryId,
             inputChars = text.length
         )
+        presentSolaris(traceId, summaryId, generatedAt, text, askFirst = true)
+    }
+
+    private fun presentSolaris(
+        traceId: String,
+        summaryId: String?,
+        generatedAt: String?,
+        text: String,
+        askFirst: Boolean
+    ) {
         appendAssistant(getString(R.string.solaris_share_original, text))
 
         val config = AIClient.loadConfig(this)
         if (config == null) {
             appendAssistant(getString(R.string.solaris_share_no_ai))
+            return
+        }
+        if (!askFirst) {
+            IntegrationLog.record(
+                traceId, IntegrationLog.Event.AI_APPROVED, IntegrationLog.Status.OK,
+                summaryId = summaryId, provider = config.provider, model = config.model
+            )
+            runSolarisAnalysis(traceId, summaryId, generatedAt, text, config)
             return
         }
         AlertDialog.Builder(this)
