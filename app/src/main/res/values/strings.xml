@@ -218,4 +218,14 @@
     <string name="solaris_share_declined">Rendben, nem küldtem el az AI-nak. Az eredeti összefoglaló fent olvasható.</string>
     <string name="solaris_share_result">Az AI értelmezése:\n\n%1$s</string>
     <string name="solaris_share_failed">Az AI-értelmezés nem sikerült: %1$s\nAz eredeti összefoglaló fent olvasható.</string>
+
+    <!-- Solaris automatikus letöltés -->
+    <string name="drawer_solaris">☀ Solaris-értelmezés most</string>
+    <string name="solaris_channel_name">Solaris-állapot</string>
+    <string name="solaris_notification_title">Friss Solaris-adat</string>
+    <string name="solaris_notification_calm">Nincs aktív figyelmeztetés. Koppints az AI-értelmezéshez.</string>
+    <string name="solaris_notification_alerts">Aktív: %1$s. Koppints az AI-értelmezéshez.</string>
+    <string name="solaris_feed_empty">Még nincs letöltött Solaris-adat. Próbáld a menü „☀ Solaris-értelmezés most” gombjával.</string>
+    <string name="solaris_feed_fetching">Letöltöm a Solaris legfrissebb állapotát…</string>
+    <string name="solaris_feed_failed">Most nem sikerült letölteni a Solaris-adatot. Ha van korábbi, azt értelmezem.</string>
 </resources>

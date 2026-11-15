@@ -223,6 +223,11 @@
                     android:text="@string/drawer_ai_settings" />
 
                 <Button
+                    android:id="@+id/drawer_solaris"
+                    style="@style/DrawerButton"
+                    android:text="@string/drawer_solaris" />
+
+                <Button
                     android:id="@+id/drawer_diagnostics"
                     style="@style/DrawerButton"
                     android:text="@string/drawer_diagnostics" />
