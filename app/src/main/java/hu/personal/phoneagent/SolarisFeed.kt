@@ -262,7 +262,7 @@ object SolarisFeed {
         }
         lines += ""
         lines += "AZ ELMÚLT 24 ÓRA JELZÉSEI:"
-        lines += if (recentLines.isEmpty()) "- nem volt jelzés" else recentLines
+        if (recentLines.isEmpty()) lines += "- nem volt jelzés" else lines.addAll(recentLines)
         val ageHours = (System.currentTimeMillis() - updatedAt.toEpochMilli()) / 3_600_000L
         if (ageHours >= STALE_HOURS) {
             lines += ""
