@@ -172,7 +172,7 @@ class MainActivity : Activity() {
 
     private fun openCamera() {
         try {
-            startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CAMERA))
+            startActivity(Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
             appendAssistant(getString(R.string.camera_done))
         } catch (_: ActivityNotFoundException) {
             appendAssistant(getString(R.string.camera_missing))
