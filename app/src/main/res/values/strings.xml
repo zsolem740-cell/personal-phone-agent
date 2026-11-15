@@ -178,4 +178,32 @@
     <string name="ai_test_no_key">Előbb add meg az API-kulcsot a teszteléshez.</string>
     <string name="ai_test_ok">Siker! A szerver válasza: %1$s</string>
     <string name="ai_test_fail">Sikertelen: %1$s</string>
+    <!-- Diagnosztika: Solaris-integráció helyi naplója -->
+    <string name="drawer_diagnostics">🧾 Diagnosztika</string>
+    <string name="diag_title">Diagnosztika</string>
+    <string name="diag_view_log">Solaris-kapcsolati napló</string>
+    <string name="diag_export_log">Napló exportálása</string>
+    <string name="diag_delete_logs">Naplók törlése</string>
+    <string name="diag_log_title">Solaris-kapcsolati napló</string>
+    <string name="diag_log_empty">A napló üres. Még nem történt Solaris-átvétel vagy AI-értelmezés.</string>
+    <string name="diag_log_dropped">Elveszett bejegyzések ebben a futásban: %1$d</string>
+    <string name="diag_log_footer">Csak az utolsó %1$d bejegyzés látszik. A napló legfeljebb 7 napig és 5 MiB-ig tárolódik a telefonon.</string>
+    <string name="diag_close">Bezárás</string>
+    <string name="diag_export_done">A napló exportálva.</string>
+    <string name="diag_export_failed">Az exportálás nem sikerült.</string>
+    <string name="diag_export_missing">Nem található fájlmentő alkalmazás.</string>
+    <string name="diag_delete_title">Naplók törlése</string>
+    <string name="diag_delete_question">Törlöd a Solaris-kapcsolati napló összes helyi fájlját? A korábban exportált példányok megmaradnak.</string>
+    <string name="diag_delete_done">A naplók törölve.</string>
+    <string name="diag_delete_failed">Nem minden naplófájlt sikerült törölni.</string>
+    <string name="diag_event_fetch_started">Solaris-lekérés elindult</string>
+    <string name="diag_event_fetch_completed">Solaris-összefoglaló átvéve</string>
+    <string name="diag_event_fetch_failed">Solaris-lekérés sikertelen</string>
+    <string name="diag_event_ai_approved">AI-küldés jóváhagyva</string>
+    <string name="diag_event_ai_declined">AI-küldés elutasítva</string>
+    <string name="diag_event_ai_started">AI-értelmezés elindult</string>
+    <string name="diag_event_ai_completed">AI-értelmezés elkészült</string>
+    <string name="diag_event_ai_failed">AI-értelmezés sikertelen</string>
+    <string name="diag_status_cancelled">megszakítva</string>
+    <string name="diag_chars">%1$s karakter</string>
 </resources>

@@ -222,6 +222,11 @@
                     style="@style/DrawerButton"
                     android:text="@string/drawer_ai_settings" />
 
+                <Button
+                    android:id="@+id/drawer_diagnostics"
+                    style="@style/DrawerButton"
+                    android:text="@string/drawer_diagnostics" />
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
