@@ -228,4 +228,13 @@
     <string name="solaris_feed_empty">Még nincs letöltött Solaris-adat. Próbáld a menü „☀ Solaris-értelmezés most” gombjával.</string>
     <string name="solaris_feed_fetching">Letöltöm a Solaris legfrissebb állapotát…</string>
     <string name="solaris_feed_failed">Most nem sikerült letölteni a Solaris-adatot. Ha van korábbi, azt értelmezem.</string>
+    <string name="speech_no_match">Nem értettem. Koppints újra a mikrofonra, és beszélj tisztán.</string>
+    <string name="speech_permission_denied">A hangbevitelhez engedélyezd a mikrofont: Beállítások → Alkalmazások → Telefonasszisztens → Engedélyek → Mikrofon.</string>
+    <string name="speech_network">A beszédfelismeréshez internet kell, vagy töltsd le a magyar offline nyelvi csomagot a Google hangbeviteli beállításaiban.</string>
+    <string name="speech_busy">A beszédfelismerő foglalt. Próbáld újra egy pillanat múlva.</string>
+    <string name="tts_problem_title">A felolvasás nem működik</string>
+    <string name="tts_not_ready">A felolvasó még nem állt készen. Próbáld újra néhány másodperc múlva.</string>
+    <string name="tts_init_failed">Nem sikerült elindítani a szövegfelolvasó motort. Állíts be felolvasó motort a telefon beállításaiban (Szövegfelolvasás).</string>
+    <string name="tts_no_hungarian">A telefon felolvasó motorja nem tud magyarul. Válaszd a Google beszédszolgáltatást, és töltsd le hozzá a magyar hangot.</string>
+    <string name="tts_open_settings">Beállítások megnyitása</string>
 </resources>

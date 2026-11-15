@@ -300,6 +300,9 @@ object AIClient {
             ?.takeIf { it.isNotBlank() }
     }
 
+    private val RETRYABLE_CODES = setOf(500, 502, 503, 504, 529)
+    private val RETRY_DELAYS_MS = longArrayOf(2_000L, 5_000L)
+
     private fun post(urlString: String, body: String, headers: Map<String, String>): JSONObject {
         val builder = Request.Builder()
             .url(urlString)
@@ -308,13 +311,24 @@ object AIClient {
             builder.header(key, value)
         }
         try {
-            http.newCall(builder.build()).execute().use { response ->
-                val text = response.body?.string() ?: ""
-                if (!response.isSuccessful) {
-                    throw AiException(httpErrorMessage(response.code, text))
+            val request = builder.build()
+            var attempt = 0
+            while (true) {
+                http.newCall(request).execute().use { response ->
+                    val text = response.body?.string() ?: ""
+                    if (response.isSuccessful) return JSONObject(text)
+                    // Túlterhelt szolgáltatás: rövid várakozás után automatikusan újrapróbáljuk.
+                    if (response.code in RETRYABLE_CODES && attempt < RETRY_DELAYS_MS.size) {
+                        Thread.sleep(RETRY_DELAYS_MS[attempt])
+                        attempt++
+                    } else {
+                        throw AiException(httpErrorMessage(response.code, text))
+                    }
                 }
-                return JSONObject(text)
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw AiException("A kérés megszakadt.", e)
         } catch (e: AiException) {
             throw e
         } catch (e: SocketTimeoutException) {

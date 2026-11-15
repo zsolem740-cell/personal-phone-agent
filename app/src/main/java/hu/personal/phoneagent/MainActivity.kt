@@ -22,10 +22,13 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.AlarmClock
 import android.provider.ContactsContract
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -70,6 +73,10 @@ class MainActivity : Activity() {
 
     private val notes = ArrayList<String>()
     private var tts: TextToSpeech? = null
+    private var ttsEngineTried = false
+    private var ttsProblem: String? = null
+    private var recognizer: SpeechRecognizer? = null
+    private var listening = false
     private var ttsReady = false
     private var speakEnabled = false
     private lateinit var preferences: SharedPreferences
@@ -88,6 +95,7 @@ class MainActivity : Activity() {
         CrashReporter.install(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        applySystemInsets(findViewById(R.id.root))
         IntegrationLog.init(this)
 
         preferences = getPreferences(MODE_PRIVATE)
@@ -131,6 +139,10 @@ class MainActivity : Activity() {
         metricSpeech = findViewById(R.id.metric_speech)
 
         micButton.setOnClickListener { startSpeechInput() }
+        // A mikrofon közepén lévő ikon ImageButton, ezért magának is kell kezelő,
+        // különben elnyeli az érintést.
+        orbIcon.setOnClickListener { startSpeechInput() }
+        (metricSpeech.parent as? View)?.setOnClickListener { toggleSpeak() }
         findViewById<ImageButton>(R.id.ai_settings_button).setOnClickListener { showAiSettings() }
         findViewById<ImageButton>(R.id.chat_clear_button).setOnClickListener { clearChat() }
 
@@ -147,17 +159,7 @@ class MainActivity : Activity() {
         findViewById<ImageButton>(R.id.chat_mic_button).setOnClickListener { startSpeechInput() }
         showConsole()
 
-        tts = TextToSpeech(this) { status ->
-            ttsReady = status == TextToSpeech.SUCCESS
-            if (ttsReady) {
-                tts?.language = Locale("hu", "HU")
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) = setOrbState(OrbState.SPEAK)
-                    override fun onDone(utteranceId: String?) = setOrbState(OrbState.IDLE)
-                    override fun onError(utteranceId: String?) = setOrbState(OrbState.IDLE)
-                })
-            }
-        }
+        initTts(null)
 
         showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
@@ -225,6 +227,8 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         orbAnimators.forEach { it.cancel() }
         speakPulse?.cancel()
+        recognizer?.destroy()
+        recognizer = null
         tts?.stop()
         tts?.shutdown()
         super.onDestroy()
@@ -256,6 +260,14 @@ class MainActivity : Activity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_AUDIO) {
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                startInAppRecognizer()
+            } else {
+                startSpeechActivity()
+            }
+            return
+        }
         if (requestCode != REQUEST_CONTACTS) return
         val name = pendingCallName
         pendingCallName = null
@@ -1016,11 +1028,141 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Android 15+ alatt az app a rendszersávok alá rajzol: a sávok és a billentyűzet helyét kihagyjuk. */
+    private fun applySystemInsets(root: View) {
+        val left = root.paddingLeft
+        val top = root.paddingTop
+        val right = root.paddingRight
+        val bottom = root.paddingBottom
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                val ime = insets.getInsets(WindowInsets.Type.ime())
+                view.setPadding(
+                    left + bars.left, top + bars.top, right + bars.right,
+                    bottom + maxOf(bars.bottom, ime.bottom)
+                )
+                WindowInsets.CONSUMED
+            } else {
+                @Suppress("DEPRECATION")
+                view.setPadding(
+                    left + insets.systemWindowInsetLeft, top + insets.systemWindowInsetTop,
+                    right + insets.systemWindowInsetRight, bottom + insets.systemWindowInsetBottom
+                )
+                @Suppress("DEPRECATION")
+                insets.consumeSystemWindowInsets()
+            }
+        }
+        root.requestApplyInsets()
+    }
+
     private fun showToast(text: String) {
         Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
     }
 
     private fun startSpeechInput() {
+        if (listening) {
+            recognizer?.stopListening()
+            return
+        }
+        tts?.stop()
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            startSpeechActivity()
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_AUDIO)
+            return
+        }
+        startInAppRecognizer()
+    }
+
+    /** Alkalmazáson belüli beszédfelismerés: nem nyit külön ablakot, a felirat élőben frissül. */
+    private fun startInAppRecognizer() {
+        val sr = recognizer ?: try {
+            SpeechRecognizer.createSpeechRecognizer(this).also { recognizer = it }
+        } catch (_: Exception) {
+            null
+        }
+        if (sr == null) {
+            startSpeechActivity()
+            return
+        }
+        sr.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                listening = true
+                setOrbState(OrbState.LISTEN)
+            }
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                setOrbState(OrbState.THINK)
+            }
+            override fun onError(error: Int) {
+                listening = false
+                setOrbState(OrbState.IDLE)
+                when (error) {
+                    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                        showToast(getString(R.string.speech_no_match))
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                        appendAssistant(getString(R.string.speech_permission_denied))
+                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
+                    SpeechRecognizer.ERROR_SERVER ->
+                        appendAssistant(getString(R.string.speech_network))
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> {
+                        recognizer?.destroy()
+                        recognizer = null
+                        showToast(getString(R.string.speech_busy))
+                    }
+                    else -> {
+                        // Például nem támogatott nyelv: a rendszer saját felismerő ablakát próbáljuk.
+                        recognizer?.destroy()
+                        recognizer = null
+                        startSpeechActivity()
+                    }
+                }
+            }
+            override fun onResults(results: Bundle?) {
+                listening = false
+                setOrbState(OrbState.IDLE)
+                val recognized = results
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                if (recognized.isNullOrBlank()) {
+                    showToast(getString(R.string.speech_no_match))
+                } else {
+                    appendUser(recognized)
+                    handle(recognized)
+                }
+            }
+            override fun onPartialResults(partialResults: Bundle?) {
+                val partial = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()
+                if (!partial.isNullOrBlank()) stateText.text = partial
+            }
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hu-HU")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        try {
+            listening = true
+            setOrbState(OrbState.LISTEN)
+            sr.startListening(intent)
+        } catch (_: Exception) {
+            listening = false
+            setOrbState(OrbState.IDLE)
+            startSpeechActivity()
+        }
+    }
+
+    /** Tartalék: a rendszer beszédfelismerő ablaka. */
+    private fun startSpeechActivity() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hu-HU")
@@ -1035,6 +1177,68 @@ class MainActivity : Activity() {
 
     private fun toggleSpeak() = setSpeakEnabled(!speakEnabled)
 
+    /** Felolvasó indítása; ha az alapmotor nem tud magyarul, a Google motorját is megpróbáljuk. */
+    private fun initTts(engine: String?) {
+        ttsReady = false
+        val listener = TextToSpeech.OnInitListener { status ->
+            if (status != TextToSpeech.SUCCESS) {
+                if (tryGoogleTts()) return@OnInitListener
+                ttsProblem = getString(R.string.tts_init_failed)
+                return@OnInitListener
+            }
+            val result = try {
+                tts?.setLanguage(Locale("hu", "HU")) ?: TextToSpeech.LANG_NOT_SUPPORTED
+            } catch (_: Exception) {
+                TextToSpeech.LANG_NOT_SUPPORTED
+            }
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                if (tryGoogleTts()) return@OnInitListener
+                ttsProblem = getString(R.string.tts_no_hungarian)
+                return@OnInitListener
+            }
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) = setOrbState(OrbState.SPEAK)
+                override fun onDone(utteranceId: String?) = setOrbState(OrbState.IDLE)
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) = setOrbState(OrbState.IDLE)
+            })
+            ttsProblem = null
+            ttsReady = true
+        }
+        tts = try {
+            if (engine == null) TextToSpeech(this, listener) else TextToSpeech(this, listener, engine)
+        } catch (_: Exception) {
+            ttsProblem = getString(R.string.tts_init_failed)
+            null
+        }
+    }
+
+    private fun tryGoogleTts(): Boolean {
+        if (ttsEngineTried) return false
+        ttsEngineTried = true
+        val google = "com.google.android.tts"
+        val current = tts?.defaultEngine
+        val installed = tts?.engines?.any { it.name == google } == true
+        if (current == google || !installed) return false
+        mainHandler.post {
+            tts?.shutdown()
+            initTts(google)
+        }
+        return true
+    }
+
+    private fun openTtsSettings() {
+        try {
+            startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+            } catch (_: Exception) {
+                appendAssistant(getString(R.string.action_denied))
+            }
+        }
+    }
+
     private fun setSpeakEnabled(enabled: Boolean) {
         speakEnabled = enabled
         preferences.edit().putBoolean(PREF_SPEAK, enabled).apply()
@@ -1043,6 +1247,15 @@ class MainActivity : Activity() {
         appendAssistant(
             getString(if (enabled) R.string.answer_speak_on else R.string.answer_speak_off)
         )
+        if (enabled && !ttsReady) {
+            val problem = ttsProblem ?: getString(R.string.tts_not_ready)
+            AlertDialog.Builder(this)
+                .setTitle(R.string.tts_problem_title)
+                .setMessage(problem)
+                .setPositiveButton(R.string.tts_open_settings) { _, _ -> openTtsSettings() }
+                .setNegativeButton(R.string.diag_close, null)
+                .show()
+        }
     }
 
     private fun updateSpeakToggle() {
@@ -1350,6 +1563,7 @@ class MainActivity : Activity() {
         private const val REQUEST_CONTACTS = 1002
         private const val REQUEST_NOTIFICATIONS = 1003
         private const val REQUEST_EXPORT_LOG = 1004
+        private const val REQUEST_AUDIO = 1005
         private const val SOLARIS_MAX_CHARS = 50_000
         private const val DIAG_LOG_LIMIT = 100
         private const val PREF_SPEAK = "speak_enabled"
