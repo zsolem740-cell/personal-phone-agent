@@ -14,6 +14,8 @@ sealed class Command {
     data object Settings : Command()
     data object Camera : Command()
     data object Wifi : Command()
+    data object SpeakOn : Command()
+    data object SpeakOff : Command()
     data class Search(val query: String) : Command()
     data object Empty : Command()
     data object Unknown : Command()
@@ -37,6 +39,8 @@ object CommandRouter {
             "beállítások", "beallitasok", "nyisd meg a beállításokat", "nyisd meg a beallitasokat" -> Command.Settings
             "kamera", "nyisd meg a kamerát", "nyisd meg a kamerat" -> Command.Camera
             "wi-fi", "wifi", "wlan" -> Command.Wifi
+            "felolvasás", "felolvasas", "felolvasás be", "felolvasas be", "olvasd fel a válaszokat" -> Command.SpeakOn
+            "felolvasás ki", "felolvasas ki", "elhallgatás", "elhallgatas", "hallgass el" -> Command.SpeakOff
             else -> searchQuery(normalized) ?: Command.Unknown
         }
     }

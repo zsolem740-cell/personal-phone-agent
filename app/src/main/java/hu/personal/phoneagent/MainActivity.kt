@@ -5,12 +5,16 @@ import android.app.AlertDialog
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.BatteryManager
 import android.os.Bundle
 import android.provider.AlarmClock
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ListView
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -21,10 +25,19 @@ class MainActivity : Activity() {
     private lateinit var adapter: MessageAdapter
     private lateinit var list: ListView
     private lateinit var input: EditText
+    private lateinit var speakToggle: ImageButton
+
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var speakEnabled = false
+    private lateinit var preferences: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        preferences = getPreferences(MODE_PRIVATE)
+        speakEnabled = preferences.getBoolean(PREF_SPEAK, false)
 
         list = findViewById(R.id.message_list)
         adapter = MessageAdapter(this, messages)
@@ -41,8 +54,42 @@ class MainActivity : Activity() {
             }
         }
 
+        speakToggle = findViewById(R.id.speak_toggle)
+        speakToggle.setOnClickListener { toggleSpeak() }
+        updateSpeakToggle()
+
+        findViewById<ImageButton>(R.id.mic_button).setOnClickListener { startSpeechInput() }
+
+        tts = TextToSpeech(this) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+            if (ttsReady) {
+                tts?.language = Locale("hu", "HU")
+            }
+        }
+
         setupQuickCommands()
         appendAssistant(getString(R.string.welcome_message))
+    }
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_SPEECH) return
+        if (resultCode == RESULT_OK) {
+            val recognized = data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!recognized.isNullOrBlank()) {
+                appendUser(recognized)
+                handle(recognized)
+            }
+        }
     }
 
     private fun setupQuickCommands() {
@@ -86,6 +133,8 @@ class MainActivity : Activity() {
             is Command.Help -> appendAssistant(getString(R.string.answer_help))
             is Command.Empty -> appendAssistant(getString(R.string.empty_command))
             is Command.Unknown -> appendAssistant(getString(R.string.answer_unknown))
+            is Command.SpeakOn -> setSpeakEnabled(true)
+            is Command.SpeakOff -> setSpeakEnabled(false)
             is Command.Calculator -> confirmAction(
                 getString(R.string.calculator_title),
                 getString(R.string.calculator_question)
@@ -115,6 +164,34 @@ class MainActivity : Activity() {
                 getString(R.string.search_question, command.query)
             ) { openWebSearch(command.query) }
         }
+    }
+
+    private fun startSpeechInput() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hu-HU")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_prompt))
+        }
+        try {
+            startActivityForResult(intent, REQUEST_SPEECH)
+        } catch (_: ActivityNotFoundException) {
+            appendAssistant(getString(R.string.speech_missing))
+        }
+    }
+
+    private fun toggleSpeak() = setSpeakEnabled(!speakEnabled)
+
+    private fun setSpeakEnabled(enabled: Boolean) {
+        speakEnabled = enabled
+        preferences.edit().putBoolean(PREF_SPEAK, enabled).apply()
+        updateSpeakToggle()
+        appendAssistant(
+            getString(if (enabled) R.string.answer_speak_on else R.string.answer_speak_off)
+        )
+    }
+
+    private fun updateSpeakToggle() {
+        speakToggle.alpha = if (speakEnabled) 1.0f else 0.35f
     }
 
     private fun confirmAction(title: String, message: String, action: () -> Unit) {
@@ -221,5 +298,13 @@ class MainActivity : Activity() {
         messages.add(ChatMessage(fromUser, text, currentTime("HH:mm")))
         adapter.notifyDataSetChanged()
         list.post { list.setSelection(messages.size - 1) }
+        if (!fromUser && speakEnabled && ttsReady) {
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_response")
+        }
+    }
+
+    companion object {
+        private const val REQUEST_SPEECH = 1001
+        private const val PREF_SPEAK = "speak_enabled"
     }
 }

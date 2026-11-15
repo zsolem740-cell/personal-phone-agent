@@ -11,7 +11,7 @@
     <string name="answer_date">Ma %1$s.</string>
     <string name="answer_battery">Az akkumulátor töltöttsége körülbelül %1$d százalék.</string>
     <string name="answer_battery_unknown">Az akkumulátor töltöttségét most nem tudom lekérni.</string>
-    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
+    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; felolvasás be; felolvasás ki; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
     <string name="answer_unknown">Ezt még nem ismerem. Írd be: segítség.</string>
     <string name="yes">Igen</string>
     <string name="no">Mégse</string>
@@ -44,6 +44,12 @@
     <string name="wifi_question">Megnyithatom a Wi-Fi beállításokat? Nem módosítok semmit.</string>
     <string name="wifi_done">Megnyitottam a Wi-Fi beállításokat.</string>
     <string name="wifi_missing">A Wi-Fi beállítások most nem nyithatók meg.</string>
+    <string name="speech_prompt">Mondd ki a parancsot</string>
+    <string name="speech_missing">Nincs telepített beszédfelismerő.</string>
+    <string name="answer_speak_on">Felolvasás bekapcsolva. Minden válaszomat felolvasom.</string>
+    <string name="answer_speak_off">Felolvasás kikapcsolva.</string>
+    <string name="speak_toggle_desc">Válaszok felolvasásának be- és kikapcsolása</string>
+    <string name="mic_button_desc">Parancs bemondása hanggal</string>
 
     <string-array name="quick_commands">
         <item>szia</item>
@@ -55,6 +61,7 @@
         <item>böngésző</item>
         <item>beállítások</item>
         <item>kamera</item>
+        <item>felolvasás</item>
         <item>segítség</item>
     </string-array>
 </resources>
