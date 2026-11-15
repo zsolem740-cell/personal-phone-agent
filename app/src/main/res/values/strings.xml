@@ -206,4 +206,16 @@
     <string name="diag_event_ai_failed">AI-értelmezés sikertelen</string>
     <string name="diag_status_cancelled">megszakítva</string>
     <string name="diag_chars">%1$s karakter</string>
+
+    <!-- Solaris-összefoglaló fogadása megosztással -->
+    <string name="solaris_share_label">Solaris-értelmezés</string>
+    <string name="solaris_share_empty">A megosztott Solaris-üzenet üres volt, nincs mit értelmezni.</string>
+    <string name="solaris_share_too_long">A megosztott szöveg túl hosszú (legfeljebb %1$d karakter lehet), ezért nem dolgoztam fel.</string>
+    <string name="solaris_share_original">Solaris eredeti összefoglalója:\n\n%1$s</string>
+    <string name="solaris_share_no_ai">Az értelmezéshez előbb állíts be egy AI-szolgáltatót a menü „AI-agy beállításai” pontjában. Az eredeti összefoglalót fent megtalálod.</string>
+    <string name="solaris_share_confirm_title">Értelmezze az AI?</string>
+    <string name="solaris_share_confirm_message">Az összefoglaló szövegét elküldöm ide: %1$s (%2$s modell). Mehet?</string>
+    <string name="solaris_share_declined">Rendben, nem küldtem el az AI-nak. Az eredeti összefoglaló fent olvasható.</string>
+    <string name="solaris_share_result">Az AI értelmezése:\n\n%1$s</string>
+    <string name="solaris_share_failed">Az AI-értelmezés nem sikerült: %1$s\nAz eredeti összefoglaló fent olvasható.</string>
 </resources>

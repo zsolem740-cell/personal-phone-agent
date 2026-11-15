@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.AlarmClock
 import android.provider.ContactsContract
 import android.speech.RecognizerIntent
@@ -41,6 +42,8 @@ import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
+import org.json.JSONObject
 
 class MainActivity : Activity() {
     private val messages = ArrayList<ChatMessage>()
@@ -158,6 +161,13 @@ class MainActivity : Activity() {
         showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
         updateMetrics()
+        if (savedInstanceState == null) handleSolarisShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSolarisShare(intent)
     }
 
     override fun onResume() {
@@ -586,6 +596,121 @@ class MainActivity : Activity() {
         } else {
             handle(commandText)
         }
+    }
+
+    // ===== Solaris-összefoglaló fogadása megosztással =====
+
+    private fun handleSolarisShare(incoming: Intent?) {
+        if (incoming?.action != Intent.ACTION_SEND || incoming.type?.startsWith("text/") != true) return
+        // Egyszer dolgozzuk fel: forgatás vagy újraindítás ne indítsa újra.
+        incoming.action = null
+        val traceId = UUID.randomUUID().toString()
+        val started = SystemClock.elapsedRealtime()
+        val text = incoming.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+        showChat()
+        if (text.isEmpty() || text.length > SOLARIS_MAX_CHARS) {
+            IntegrationLog.record(
+                traceId, IntegrationLog.Event.SOLARIS_FETCH_FAILED, IntegrationLog.Status.ERROR,
+                durationMs = SystemClock.elapsedRealtime() - started,
+                inputChars = text.length,
+                errorCode = IntegrationLog.ErrorCode.INVALID_RESPONSE
+            )
+            appendAssistant(
+                if (text.isEmpty()) getString(R.string.solaris_share_empty)
+                else getString(R.string.solaris_share_too_long, SOLARIS_MAX_CHARS)
+            )
+            return
+        }
+        val generatedAt = Regex("^Készült:\\s*(\\S+)", RegexOption.MULTILINE).find(text)?.groupValues?.get(1)
+        val summaryId = generatedAt?.let { "solaris-$it" }
+        IntegrationLog.record(
+            traceId, IntegrationLog.Event.SOLARIS_FETCH_COMPLETED, IntegrationLog.Status.OK,
+            durationMs = SystemClock.elapsedRealtime() - started,
+            summaryId = summaryId,
+            inputChars = text.length
+        )
+        appendAssistant(getString(R.string.solaris_share_original, text))
+
+        val config = AIClient.loadConfig(this)
+        if (config == null) {
+            appendAssistant(getString(R.string.solaris_share_no_ai))
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.solaris_share_confirm_title))
+            .setMessage(getString(R.string.solaris_share_confirm_message, providerLabel(config.provider), config.model))
+            .setPositiveButton(getString(R.string.yes)) { _, _ ->
+                IntegrationLog.record(
+                    traceId, IntegrationLog.Event.AI_APPROVED, IntegrationLog.Status.OK,
+                    summaryId = summaryId, provider = config.provider, model = config.model
+                )
+                runSolarisAnalysis(traceId, summaryId, generatedAt, text, config)
+            }
+            .setNegativeButton(getString(R.string.no)) { _, _ ->
+                IntegrationLog.record(
+                    traceId, IntegrationLog.Event.AI_DECLINED, IntegrationLog.Status.CANCELLED,
+                    summaryId = summaryId, provider = config.provider, model = config.model,
+                    errorCode = IntegrationLog.ErrorCode.CANCELLED
+                )
+                appendAssistant(getString(R.string.solaris_share_declined))
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun runSolarisAnalysis(
+        traceId: String,
+        summaryId: String?,
+        generatedAt: String?,
+        text: String,
+        config: AIClient.Config
+    ) {
+        val payload = JSONObject()
+            .put("task", "solaris_summary_interpretation")
+            .put("summary_id", summaryId ?: JSONObject.NULL)
+            .put("generated_at", generatedAt ?: JSONObject.NULL)
+            .put("source_text", text)
+            .toString()
+        val systemPrompt = resources.openRawResource(R.raw.solaris_system_prompt)
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }
+        IntegrationLog.record(
+            traceId, IntegrationLog.Event.AI_STARTED, IntegrationLog.Status.OK,
+            summaryId = summaryId, provider = config.provider, model = config.model,
+            inputChars = payload.length
+        )
+        appendAssistant(getString(R.string.ai_thinking))
+        setOrbState(OrbState.THINK)
+        val started = SystemClock.elapsedRealtime()
+        AIClient.request(config, systemPrompt, emptyList(), payload) { result ->
+            val duration = SystemClock.elapsedRealtime() - started
+            when (result) {
+                is AIClient.AiResult.Success -> IntegrationLog.record(
+                    traceId, IntegrationLog.Event.AI_COMPLETED, IntegrationLog.Status.OK,
+                    durationMs = duration, summaryId = summaryId,
+                    provider = config.provider, model = config.model,
+                    outputChars = result.text.length
+                )
+                is AIClient.AiResult.Error -> IntegrationLog.record(
+                    traceId, IntegrationLog.Event.AI_FAILED, IntegrationLog.Status.ERROR,
+                    durationMs = duration, summaryId = summaryId,
+                    provider = config.provider, model = config.model,
+                    errorCode = IntegrationLog.ErrorCode.AI_REQUEST_FAILED
+                )
+            }
+            if (isFinishing || isDestroyed) return@request
+            setOrbState(OrbState.IDLE)
+            // Csak megjelenítjük: az AI válaszából itt soha nem indul parancs vagy művelet.
+            when (result) {
+                is AIClient.AiResult.Success -> appendAssistant(getString(R.string.solaris_share_result, result.text))
+                is AIClient.AiResult.Error -> appendAssistant(getString(R.string.solaris_share_failed, result.message))
+            }
+        }
+    }
+
+    private fun providerLabel(provider: String): String = when (provider) {
+        AIClient.PROVIDER_OPENAI -> getString(R.string.ai_provider_openai)
+        AIClient.PROVIDER_GEMINI -> getString(R.string.ai_provider_gemini)
+        else -> getString(R.string.ai_provider_anthropic)
     }
 
     private fun showAiSettings() {
@@ -1106,6 +1231,7 @@ class MainActivity : Activity() {
         private const val REQUEST_CONTACTS = 1002
         private const val REQUEST_NOTIFICATIONS = 1003
         private const val REQUEST_EXPORT_LOG = 1004
+        private const val SOLARIS_MAX_CHARS = 50_000
         private const val DIAG_LOG_LIMIT = 100
         private const val PREF_SPEAK = "speak_enabled"
         private const val PREF_NOTES = "notes"
