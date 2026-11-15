@@ -91,7 +91,7 @@
     <string name="ai_model_hint">Modell neve</string>
     <string name="ai_key_note">A kulcs csak a telefonodon tárolódik, és kizárólag az AI-hívásokhoz használatos. Kulcs nélkül az asszisztens csak a beépített parancsokat ismeri, és nem küld adatot sehova.</string>
     <string name="ai_save">Mentés</string>
-    <string name="ai_enabled">AI-agy beállítva. Az ismeretlen kéréseket most természetes beszélgetéssel válaszolom meg.</string>
+    <string name="ai_enabled">AI-agy beállítva: %1$s, modell: %2$s. Az ismeretlen kéréseket most természetes beszélgetéssel válaszolom meg.</string>
     <string name="ai_disabled">AI-agy kikapcsolva. Csak a beépített parancsokat ismerem.</string>
     <string name="ai_thinking">Gondolkodom…</string>
     <string name="ai_error">Az AI-hívás nem sikerült. Ellenőrizd az API-kulcsot, a modellnevet és az internetkapcsolatot.</string>

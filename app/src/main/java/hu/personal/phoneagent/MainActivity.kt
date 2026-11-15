@@ -603,6 +603,7 @@ class MainActivity : Activity() {
         keyInput.setText(existing?.apiKey ?: "")
         modelInput.setText(existing?.model ?: AIClient.defaultModel(initialProvider))
 
+        var firstSelection = true
         providerSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
                 parent: AdapterView<*>?,
@@ -610,6 +611,12 @@ class MainActivity : Activity() {
                 position: Int,
                 id: Long
             ) {
+                if (firstSelection) {
+                    // A párbeszédpanel megnyitásakor induló automatikus hívás:
+                    // ilyenkor a mentett modellnevet kell megtartani, nem felülírni.
+                    firstSelection = false
+                    return
+                }
                 modelInput.setText(AIClient.defaultModel(providerKeys[position]))
             }
 
@@ -654,7 +661,13 @@ class MainActivity : Activity() {
                     val model = modelInput.text.toString().trim()
                         .ifBlank { AIClient.defaultModel(provider) }
                     AIClient.saveConfig(this, provider, key, model)
-                    appendAssistant(getString(R.string.ai_enabled))
+                    appendAssistant(
+                        getString(
+                            R.string.ai_enabled,
+                            providerNames[providerSpinner.selectedItemPosition],
+                            model
+                        )
+                    )
                 }
             }
             .setNegativeButton(getString(R.string.no), null)
