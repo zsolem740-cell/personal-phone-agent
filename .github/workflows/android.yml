@@ -26,6 +26,12 @@ jobs:
           gradle-version: '8.9'
       - name: Build, lint, and run available unit tests
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telefonasszisztens-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
