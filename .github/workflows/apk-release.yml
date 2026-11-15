@@ -1,0 +1,42 @@
+name: Publish test APK
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apk-release.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build and check
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
+      - name: Publish APK and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp app/build/outputs/apk/debug/app-debug.apk Telefonasszisztens-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Telefonasszisztens-debug.apk
+          sha256sum Telefonasszisztens-debug.apk > SHA256SUMS.txt
+          TAG="test-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$TAG" Telefonasszisztens-debug.apk SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title "Telefonasszisztens tesztverzio $TAG" --notes "Tesztcelu debug APK, nem stabil kiadas. A Google Play Protect egy korabban letoltott valtozat telepiteset blokkolta; ennek oka meg nincs tisztazva. Ez a kiadas nem biztonsagi tanusitas es nem javitja igazoltan a tiltast. Ne kapcsold ki a vedelmet. A zold build nem helyettesit virusvizsgalatot vagy telefonos tesztet. Forras commit: $GITHUB_SHA. Kozvetlen letolteshez a Telefonasszisztens-debug.apk fajlt valaszd, ne a Source code archivumot."
