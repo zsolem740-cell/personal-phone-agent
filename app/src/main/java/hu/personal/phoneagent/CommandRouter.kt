@@ -16,6 +16,13 @@ sealed class Command {
     data object Wifi : Command()
     data object SpeakOn : Command()
     data object SpeakOff : Command()
+    data object Phone : Command()
+    data object Sms : Command()
+    data object Contacts : Command()
+    data object Maps : Command()
+    data class Note(val text: String) : Command()
+    data object NotesList : Command()
+    data object NotesClear : Command()
     data class Search(val query: String) : Command()
     data object Empty : Command()
     data object Unknown : Command()
@@ -41,8 +48,24 @@ object CommandRouter {
             "wi-fi", "wifi", "wlan" -> Command.Wifi
             "felolvasás", "felolvasas", "felolvasás be", "felolvasas be", "olvasd fel a válaszokat" -> Command.SpeakOn
             "felolvasás ki", "felolvasas ki", "elhallgatás", "elhallgatas", "hallgass el" -> Command.SpeakOff
-            else -> searchQuery(normalized) ?: Command.Unknown
+            "telefon", "hívás", "hivas", "tárcsázó", "tarcsazo", "nyisd meg a telefont" -> Command.Phone
+            "sms", "üzenetek", "uzenetek", "nyisd meg az üzeneteket", "nyisd meg az uzeneteket" -> Command.Sms
+            "névjegyek", "nevjegyek", "kontaktok", "nyisd meg a névjegyeket", "nyisd meg a nevjegyeket" -> Command.Contacts
+            "térkép", "terkep", "navigáció", "navigacio", "nyisd meg a térképet", "nyisd meg a terkepet" -> Command.Maps
+            "jegyzetek" -> Command.NotesList
+            "jegyzetek törlése", "jegyzetek torlese" -> Command.NotesClear
+            else -> noteQuery(normalized) ?: searchQuery(normalized) ?: Command.Unknown
         }
+    }
+
+    private fun noteQuery(normalized: String): Command.Note? {
+        for (prefix in listOf("jegyzetelj ", "jegyzetelj:", "jegyzet: ")) {
+            if (normalized.startsWith(prefix)) {
+                val note = normalized.removePrefix(prefix).trim()
+                if (note.isNotEmpty()) return Command.Note(note)
+            }
+        }
+        return null
     }
 
     private fun searchQuery(normalized: String): Command.Search? {

@@ -4,12 +4,86 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:letterSpacing="0.08"
+            android:text="@string/logo_title"
+            android:textColor="@color/cyan"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/status_online"
+            android:textColor="@color/green_status"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/clock_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:letterSpacing="0.05"
+        android:textColor="@color/text_primary"
+        android:textSize="42sp" />
+
+    <TextView
+        android:id="@+id/clock_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:textColor="@color/text_muted"
+        android:textSize="13sp" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp">
+
+        <ImageButton
+            android:id="@+id/mic_button"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center"
+            android:background="@drawable/mic_orb"
+            android:contentDescription="@string/mic_button_desc"
+            android:padding="26dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_mic"
+            android:tint="@color/cyan" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/mic_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:text="@string/mic_hint"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
+
     <ListView
         android:id="@+id/message_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginTop="10dp"
         android:layout_weight="1"
-        android:background="@drawable/chat_background"
         android:divider="@null"
         android:dividerHeight="0dp"
         android:paddingLeft="12dp"
@@ -20,7 +94,7 @@
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/input_background"
+        android:background="@color/panel"
         android:scrollbars="none">
 
         <LinearLayout
@@ -36,20 +110,22 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
-        android:background="@color/input_background">
+        android:background="@color/panel">
 
         <EditText
             android:id="@+id/command_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/chip_background"
+            android:background="@drawable/edittext_background"
             android:hint="@string/input_hint"
             android:imeOptions="actionSend"
             android:inputType="text"
             android:maxLines="3"
             android:paddingLeft="14dp"
-            android:paddingRight="14dp" />
+            android:paddingRight="14dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted" />
 
         <ImageButton
             android:id="@+id/speak_toggle"
@@ -61,25 +137,15 @@
             android:padding="10dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_speaker"
-            android:tint="@color/primary" />
-
-        <ImageButton
-            android:id="@+id/mic_button"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:layout_marginLeft="8dp"
-            android:background="@drawable/chip_background"
-            android:contentDescription="@string/mic_button_desc"
-            android:padding="10dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_mic"
-            android:tint="@color/primary" />
+            android:tint="@color/cyan" />
 
         <Button
             android:id="@+id/send_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"
-            android:text="@string/send" />
+            android:background="@drawable/btn_send"
+            android:text="@string/send"
+            android:textColor="@android:color/white" />
     </LinearLayout>
 </LinearLayout>

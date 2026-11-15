@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#0B57D0</color>
-    <color name="primary_dark">#0842A0</color>
-    <color name="input_background">#FFFFFF</color>
-    <color name="icon_background">#0B57D0</color>
-    <color name="message_text">#1F1F1F</color>
+    <color name="cyan">#00E5FF</color>
+    <color name="blue_action">#1764D9</color>
+    <color name="green_status">#6EFFBD</color>
+    <color name="text_primary">#EAF7FF</color>
+    <color name="text_muted">#8299AD</color>
+    <color name="bg_dark">#050B14</color>
+    <color name="panel">#0B1726</color>
+    <color name="bubble_user">#1764D9</color>
+    <color name="bubble_assistant_bg">#0D1D2D</color>
+    <color name="bubble_assistant_border">#1E3D5C</color>
+    <color name="chip_bg">#102438</color>
+    <color name="chip_stroke">#1D5C7A</color>
+    <color name="input_bg">#071421</color>
+    <color name="input_stroke">#1D3A54</color>
+    <color name="message_text">#D4E9F5</color>
     <color name="message_time_user">#B3FFFFFF</color>
-    <color name="message_time_assistant">#5F6368</color>
-    <color name="bubble_assistant">#FFFFFF</color>
-    <color name="bubble_assistant_border">#D8E0EC</color>
-    <color name="chip_stroke">#C9CDD4</color>
+    <color name="message_time_assistant">#8299AD</color>
+    <color name="icon_background">#1764D9</color>
 </resources>

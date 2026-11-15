@@ -9,5 +9,5 @@
     android:paddingRight="16dp"
     android:stateListAnimator="@null"
     android:textAllCaps="false"
-    android:textColor="@color/primary"
+    android:textColor="@color/cyan"
     android:textSize="13sp" />

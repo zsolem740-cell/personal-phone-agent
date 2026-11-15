@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Telefonasszisztens</string>
+    <string name="logo_title">◈ TELEFONASSZISZTENS</string>
+    <string name="status_online">● RENDSZER ONLINE</string>
+    <string name="mic_hint">Érintsd meg a mikrofont, vagy írj be egy parancsot alul</string>
     <string name="send">Küldés</string>
     <string name="input_hint">Parancs, például: segítség</string>
-    <string name="welcome_message">Üdv! Helyi prototípus vagyok, hálózat nélkül. Koppints egy gyorsparancsra alul, vagy írd be: segítség.</string>
+    <string name="welcome_message">Üdv! Helyi asszisztens vagyok, hálózat nélkül. Koppints a mikrofonra, vagy írj be egy parancsot. Segítség a parancsokhoz.</string>
     <string name="you_prefix">%1$s</string>
     <string name="empty_command">Először írj be egy parancsot.</string>
     <string name="answer_greeting">Szia! Miben segíthetek?</string>
@@ -11,7 +14,7 @@
     <string name="answer_date">Ma %1$s.</string>
     <string name="answer_battery">Az akkumulátor töltöttsége körülbelül %1$d százalék.</string>
     <string name="answer_battery_unknown">Az akkumulátor töltöttségét most nem tudom lekérni.</string>
-    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; felolvasás be; felolvasás ki; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
+    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; telefon; üzenetek; névjegyek; térkép; jegyzetelj …; jegyzetek; felolvasás be; felolvasás ki; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
     <string name="answer_unknown">Ezt még nem ismerem. Írd be: segítség.</string>
     <string name="yes">Igen</string>
     <string name="no">Mégse</string>
@@ -23,11 +26,6 @@
     <string name="alarms_question">Megnyithatom a telefon ébresztőképernyőjét? Nem módosítok ébresztőt.</string>
     <string name="alarms_done">Megnyitottam az ébresztőket.</string>
     <string name="alarms_missing">Nincs a kérést kezelő óraalkalmazás.</string>
-    <string name="search_title">Webes keresés</string>
-    <string name="search_question">Megnyissam a keresést ezzel: „%1$s”?</string>
-    <string name="search_done">Átadtam a keresést az Androidnak.</string>
-    <string name="search_missing">Nincs telepített keresőalkalmazás.</string>
-    <string name="action_denied">Az Android nem engedélyezte a műveletet.</string>
     <string name="browser_title">Böngésző megnyitása</string>
     <string name="browser_question">Megnyithatom a telefon alap böngészőjét? Nem küldök neki adatot.</string>
     <string name="browser_done">Átadtam a megnyitási kérést az Androidnak.</string>
@@ -44,24 +42,49 @@
     <string name="wifi_question">Megnyithatom a Wi-Fi beállításokat? Nem módosítok semmit.</string>
     <string name="wifi_done">Megnyitottam a Wi-Fi beállításokat.</string>
     <string name="wifi_missing">A Wi-Fi beállítások most nem nyithatók meg.</string>
+    <string name="phone_title">Telefon megnyitása</string>
+    <string name="phone_question">Megnyithatom a tárcsázót? Nem indítok hívást.</string>
+    <string name="phone_done">Átadtam a megnyitási kérést az Androidnak.</string>
+    <string name="phone_missing">Nincs elérhető telefonalkalmazás.</string>
+    <string name="sms_title">Üzenetek megnyitása</string>
+    <string name="sms_question">Megnyithatom az üzeneteket? Nem küldök üzenetet.</string>
+    <string name="sms_done">Megnyitottam az üzeneteket.</string>
+    <string name="sms_missing">Nincs elérhető üzenetalkalmazás.</string>
+    <string name="contacts_title">Névjegyek megnyitása</string>
+    <string name="contacts_question">Megnyithatom a névjegyeket? Nem módosítok semmit.</string>
+    <string name="contacts_done">Megnyitottam a névjegyeket.</string>
+    <string name="contacts_missing">Nincs elérhető névjegyalkalmazás.</string>
+    <string name="maps_title">Térkép megnyitása</string>
+    <string name="maps_question">Megnyithatom a térképet? Nem indítok navigációt.</string>
+    <string name="maps_done">Átadtam a megnyitási kérést az Androidnak.</string>
+    <string name="maps_missing">Nincs telepített térképalkalmazás.</string>
+    <string name="note_saved">Elmentettem a jegyzetet.</string>
+    <string name="notes_empty">Nincs elmentett jegyzet.</string>
+    <string name="notes_list_header">Jegyzeteid:</string>
+    <string name="notes_cleared">A jegyzetek törölve.</string>
+    <string name="notes_clear_title">Jegyzetek törlése</string>
+    <string name="notes_clear_question">Töröljem az összes elmentett jegyzetet?</string>
     <string name="speech_prompt">Mondd ki a parancsot</string>
     <string name="speech_missing">Nincs telepített beszédfelismerő.</string>
     <string name="answer_speak_on">Felolvasás bekapcsolva. Minden válaszomat felolvasom.</string>
     <string name="answer_speak_off">Felolvasás kikapcsolva.</string>
     <string name="speak_toggle_desc">Válaszok felolvasásának be- és kikapcsolása</string>
     <string name="mic_button_desc">Parancs bemondása hanggal</string>
+    <string name="action_denied">Az Android nem engedélyezte a műveletet.</string>
+    <string name="search_title">Webes keresés</string>
+    <string name="search_question">Megnyissam a keresést ezzel: „%1$s”?</string>
+    <string name="search_done">Átadtam a keresést az Androidnak.</string>
+    <string name="search_missing">Nincs telepített keresőalkalmazás.</string>
 
     <string-array name="quick_commands">
         <item>szia</item>
         <item>idő</item>
-        <item>dátum</item>
         <item>akku</item>
         <item>számológép</item>
-        <item>ébresztők</item>
-        <item>böngésző</item>
-        <item>beállítások</item>
-        <item>kamera</item>
-        <item>felolvasás</item>
+        <item>telefon</item>
+        <item>üzenetek</item>
+        <item>térkép</item>
+        <item>jegyzetek</item>
         <item>segítség</item>
     </string-array>
 </resources>
