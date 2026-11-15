@@ -51,13 +51,18 @@ object SolarisFeed {
         data class Failure(val code: IntegrationLog.ErrorCode) : FetchResult()
     }
 
+    /**
+     * Óránkénti háttérletöltés beütemezése. Nem kér újraindítás-engedélyt, ezért a telefon
+     * újraindítása után az app első megnyitásakor ütemeződik újra (minden indításkor hívjuk).
+     */
     fun schedule(context: Context) {
         val scheduler = context.getSystemService(JobScheduler::class.java) ?: return
-        if (scheduler.getPendingJob(JOB_ID) != null) return
+        // A 0.9.7 még tartós feladatot ütemezett; azt egyszer lecseréljük a nem tartósra.
+        val pending = scheduler.getPendingJob(JOB_ID)
+        if (pending != null && !pending.isPersisted) return
         val job = JobInfo.Builder(JOB_ID, ComponentName(context, SolarisJobService::class.java))
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setPeriodic(TimeUnit.HOURS.toMillis(1), TimeUnit.MINUTES.toMillis(15))
-            .setPersisted(true)
             .build()
         scheduler.schedule(job)
     }
