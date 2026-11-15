@@ -5,11 +5,18 @@ import android.os.Handler
 import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
+import okhttp3.Dns
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 
 object AIClient {
     const val PROVIDER_ANTHROPIC = "anthropic"
@@ -17,6 +24,24 @@ object AIClient {
     const val PROVIDER_GEMINI = "gemini"
 
     private const val PREFS = "ai_config"
+
+    /** IPv4-címeket próbálja először: sok otthoni és mobilhálózaton az IPv6 hibás. */
+    private val ipv4FirstDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            val all = Dns.SYSTEM.lookup(hostname)
+            return all.filterIsInstance<Inet4Address>() + all.filterNot { it is Inet4Address }
+        }
+    }
+
+    private val http: OkHttpClient = OkHttpClient.Builder()
+        .dns(ipv4FirstDns)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .build()
+
+    private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     data class Config(val provider: String, val apiKey: String, val model: String)
 
@@ -82,8 +107,8 @@ object AIClient {
                 if (apiResult is AiResult.Error && isNetworkErrorMessage(apiResult.message)) {
                     AiResult.Error(
                         "Az internetkapcsolat működik (google.com elérhető), de az AI szervere nem " +
-                            "volt elérhető időben. Ezt okozhatja a hálózat korlátozása vagy átmeneti " +
-                            "túlterheltség. Részletek: ${apiResult.message}"
+                            "válaszolt időben. Részletek: ${apiResult.message}\n\n" +
+                            probeHost(hostFor(config.provider))
                     )
                 } else {
                     apiResult
@@ -95,22 +120,45 @@ object AIClient {
 
     private fun isNetworkErrorMessage(message: String): Boolean =
         message.contains("elérni a szervert") ||
+            message.contains("Időtúllépés") ||
             message.contains("internetkapcsolat") ||
             message.contains("megnyitni a kapcsolatot")
 
     private fun hasInternet(): Boolean = try {
-        val connection = URL("https://www.google.com/generate_204")
-            .openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 5_000
-        connection.readTimeout = 5_000
-        try {
-            connection.responseCode in 200..399
-        } finally {
-            connection.disconnect()
-        }
+        val request = Request.Builder().url("https://www.google.com/generate_204").get().build()
+        http.newBuilder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .build()
+            .newCall(request).execute().use { it.code in 200..399 }
     } catch (_: Exception) {
         false
+    }
+
+    /** Megpróbál TCP-kapcsolatot nyitni a szerver minden címére, és összefoglalja az eredményt. */
+    private fun probeHost(host: String): String {
+        val addresses = try {
+            Dns.SYSTEM.lookup(host)
+        } catch (e: Exception) {
+            return "A(z) $host név nem oldható fel (DNS-hiba: ${e.javaClass.simpleName})."
+        }
+        val lines = addresses.take(4).map { address ->
+            val family = if (address is Inet4Address) "IPv4" else "IPv6"
+            val started = System.currentTimeMillis()
+            try {
+                Socket().use { it.connect(InetSocketAddress(address, 443), 4_000) }
+                "$family ${address.hostAddress}: OK (${System.currentTimeMillis() - started} ms)"
+            } catch (e: Exception) {
+                "$family ${address.hostAddress}: SIKERTELEN (${e.javaClass.simpleName})"
+            }
+        }
+        return "Címek ellenőrzése ($host):\n" + lines.joinToString("\n")
+    }
+
+    private fun hostFor(provider: String): String = when (provider) {
+        PROVIDER_OPENAI -> "api.openai.com"
+        PROVIDER_GEMINI -> "generativelanguage.googleapis.com"
+        else -> "api.anthropic.com"
     }
 
     private fun runRequest(
@@ -253,41 +301,32 @@ object AIClient {
     }
 
     private fun post(urlString: String, body: String, headers: Map<String, String>): JSONObject {
-        val connection = try {
-            URL(urlString).openConnection() as HttpURLConnection
-        } catch (e: IOException) {
-            throw AiException("Nem sikerült megnyitni a kapcsolatot. Nincs internet?", e)
+        val builder = Request.Builder()
+            .url(urlString)
+            .post(body.toRequestBody(jsonType))
+        for ((key, value) in headers) {
+            builder.header(key, value)
         }
-        return try {
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 60_000
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            for ((key, value) in headers) {
-                connection.setRequestProperty(key, value)
+        try {
+            http.newCall(builder.build()).execute().use { response ->
+                val text = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    throw AiException(httpErrorMessage(response.code, text))
+                }
+                return JSONObject(text)
             }
-            connection.outputStream.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val text = try {
-                stream?.bufferedReader()?.use(BufferedReader::readText) ?: ""
-            } catch (e: IOException) {
-                ""
-            }
-            if (code !in 200..299) {
-                throw AiException(httpErrorMessage(code, text))
-            }
-            JSONObject(text)
         } catch (e: AiException) {
             throw e
-        } catch (e: IOException) {
+        } catch (e: SocketTimeoutException) {
             throw AiException(
-                "Nem sikerült elérni a szervert – nincs internetkapcsolat vagy időtúllépés. (${e.javaClass.simpleName})",
+                "Időtúllépés: a szerver nem válaszolt időben. (${e.message ?: "SocketTimeoutException"})",
                 e
             )
-        } finally {
-            connection.disconnect()
+        } catch (e: IOException) {
+            throw AiException(
+                "Nem sikerült elérni a szervert – nincs internetkapcsolat vagy a hálózat blokkolja. (${e.javaClass.simpleName})",
+                e
+            )
         }
     }
 

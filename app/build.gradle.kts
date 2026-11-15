@@ -13,8 +13,8 @@ android {
         applicationId = "hu.personal.phoneagent"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.9.3"
+        versionCode = 15
+        versionName = "0.9.4"
     }
 
     if (keystorePath != null) {
@@ -48,4 +48,8 @@ android {
             isMinifyEnabled = false
         }
     }
+}
+
+dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
