@@ -22,11 +22,15 @@ import android.provider.AlarmClock
 import android.provider.ContactsContract
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ListView
+import android.widget.Spinner
 import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -93,6 +97,7 @@ class MainActivity : Activity() {
         updateSpeakToggle()
 
         findViewById<ImageButton>(R.id.mic_button).setOnClickListener { startSpeechInput() }
+        findViewById<ImageButton>(R.id.ai_settings_button).setOnClickListener { showAiSettings() }
 
         tts = TextToSpeech(this) { status ->
             ttsReady = status == TextToSpeech.SUCCESS
@@ -218,7 +223,7 @@ class MainActivity : Activity() {
             }
             is Command.Help -> appendAssistant(getString(R.string.answer_help))
             is Command.Empty -> appendAssistant(getString(R.string.empty_command))
-            is Command.Unknown -> appendAssistant(getString(R.string.answer_unknown))
+            is Command.Unknown -> handleUnknownWithAi(request)
             is Command.SpeakOn -> setSpeakEnabled(true)
             is Command.SpeakOff -> setSpeakEnabled(false)
             is Command.Note -> saveNote(command.text)
@@ -308,6 +313,107 @@ class MainActivity : Activity() {
                 getString(R.string.search_question, command.query)
             ) { openWebSearch(command.query) }
         }
+    }
+
+    private fun handleUnknownWithAi(request: String) {
+        val config = AIClient.loadConfig(this)
+        if (config == null) {
+            appendAssistant(getString(R.string.answer_unknown))
+            return
+        }
+        appendAssistant(getString(R.string.ai_thinking))
+        val history = messages.dropLast(1).takeLast(12)
+        AIClient.request(config, getString(R.string.ai_system_prompt), history, request) { response ->
+            if (isFinishing || isDestroyed) return@request
+            if (response == null) {
+                appendAssistant(getString(R.string.ai_error))
+            } else {
+                applyAiResponse(response)
+            }
+        }
+    }
+
+    private fun applyAiResponse(response: String) {
+        val trimmed = response.trim()
+        val actionLine = trimmed.lineSequence()
+            .firstOrNull { it.startsWith("ACTION:", ignoreCase = true) }
+        if (actionLine == null) {
+            appendAssistant(trimmed)
+            return
+        }
+        val commandText = actionLine.removePrefix("ACTION:").trim()
+        val explanation = trimmed.lineSequence()
+            .filter { it != actionLine }
+            .joinToString("\n")
+            .trim()
+        if (explanation.isNotBlank()) {
+            appendAssistant(explanation)
+        }
+        val command = CommandRouter.parse(commandText)
+        if (command is Command.Unknown || command is Command.Empty) {
+            appendAssistant(getString(R.string.ai_action_unrecognized, commandText))
+        } else {
+            handle(commandText)
+        }
+    }
+
+    private fun showAiSettings() {
+        val view = layoutInflater.inflate(R.layout.dialog_ai_settings, null)
+        val providerSpinner = view.findViewById<Spinner>(R.id.ai_provider)
+        val keyInput = view.findViewById<EditText>(R.id.ai_key)
+        val modelInput = view.findViewById<EditText>(R.id.ai_model)
+
+        val providerKeys = listOf(
+            AIClient.PROVIDER_ANTHROPIC,
+            AIClient.PROVIDER_OPENAI,
+            AIClient.PROVIDER_GEMINI
+        )
+        val providerNames = listOf(
+            getString(R.string.ai_provider_anthropic),
+            getString(R.string.ai_provider_openai),
+            getString(R.string.ai_provider_gemini)
+        )
+        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, providerNames)
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        providerSpinner.adapter = spinnerAdapter
+
+        val existing = AIClient.loadConfig(this)
+        val initialProvider = existing?.provider ?: AIClient.PROVIDER_ANTHROPIC
+        providerSpinner.setSelection(providerKeys.indexOf(initialProvider).coerceAtLeast(0))
+        keyInput.setText(existing?.apiKey ?: "")
+        modelInput.setText(existing?.model ?: AIClient.defaultModel(initialProvider))
+
+        providerSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                selectedView: View?,
+                position: Int,
+                id: Long
+            ) {
+                modelInput.setText(AIClient.defaultModel(providerKeys[position]))
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.ai_settings_title))
+            .setView(view)
+            .setPositiveButton(getString(R.string.ai_save)) { _, _ ->
+                val key = keyInput.text.toString().trim()
+                val provider = providerKeys[providerSpinner.selectedItemPosition]
+                if (key.isEmpty()) {
+                    AIClient.saveConfig(this, provider, "", "")
+                    appendAssistant(getString(R.string.ai_disabled))
+                } else {
+                    val model = modelInput.text.toString().trim()
+                        .ifBlank { AIClient.defaultModel(provider) }
+                    AIClient.saveConfig(this, provider, key, model)
+                    appendAssistant(getString(R.string.ai_enabled))
+                }
+            }
+            .setNegativeButton(getString(R.string.no), null)
+            .show()
     }
 
     private fun startSpeechInput() {
