@@ -3,29 +3,39 @@
     <string name="app_name">Telefonasszisztens</string>
     <string name="send">Küldés</string>
     <string name="input_hint">Parancs, például: segítség</string>
-    <string name="welcome_message">Asszisztens: Üdv! Helyi prototípus vagyok, hálózat nélkül. Írd be: segítség.</string>
-    <string name="you_prefix">Te: %1$s</string>
-    <string name="empty_command">Asszisztens: Először írj be egy parancsot.</string>
-    <string name="answer_greeting">Asszisztens: Szia! Miben segíthetek?</string>
-    <string name="answer_time">Asszisztens: Most %1$s van.</string>
-    <string name="answer_date">Asszisztens: Ma %1$s.</string>
-    <string name="answer_battery">Asszisztens: Az akkumulátor töltöttsége körülbelül %1$d százalék.</string>
-    <string name="answer_battery_unknown">Asszisztens: Az akkumulátor töltöttségét most nem tudom lekérni.</string>
-    <string name="answer_help">Asszisztens: Parancsok: szia; idő; dátum; akku; számológép; ébresztők; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
-    <string name="answer_unknown">Asszisztens: Ezt még nem ismerem. Írd be: segítség.</string>
+    <string name="welcome_message">Üdv! Helyi prototípus vagyok, hálózat nélkül. Koppints egy gyorsparancsra alul, vagy írd be: segítség.</string>
+    <string name="you_prefix">%1$s</string>
+    <string name="empty_command">Először írj be egy parancsot.</string>
+    <string name="answer_greeting">Szia! Miben segíthetek?</string>
+    <string name="answer_time">Most %1$s van.</string>
+    <string name="answer_date">Ma %1$s.</string>
+    <string name="answer_battery">Az akkumulátor töltöttsége körülbelül %1$d százalék.</string>
+    <string name="answer_battery_unknown">Az akkumulátor töltöttségét most nem tudom lekérni.</string>
+    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
+    <string name="answer_unknown">Ezt még nem ismerem. Írd be: segítség.</string>
     <string name="yes">Igen</string>
     <string name="no">Mégse</string>
     <string name="calculator_title">Számológép megnyitása</string>
     <string name="calculator_question">Megnyithatom a telefon számológépét? Nem küldök neki adatot.</string>
-    <string name="calculator_done">Asszisztens: Átadtam a megnyitási kérést az Androidnak.</string>
-    <string name="calculator_missing">Asszisztens: Nincs a kérést kezelő számológép.</string>
+    <string name="calculator_done">Átadtam a megnyitási kérést az Androidnak.</string>
+    <string name="calculator_missing">Nincs a kérést kezelő számológép.</string>
     <string name="alarms_title">Ébresztők megnyitása</string>
     <string name="alarms_question">Megnyithatom a telefon ébresztőképernyőjét? Nem módosítok ébresztőt.</string>
-    <string name="alarms_done">Asszisztens: Megnyitottam az ébresztőket.</string>
-    <string name="alarms_missing">Asszisztens: Nincs a kérést kezelő óraalkalmazás.</string>
+    <string name="alarms_done">Megnyitottam az ébresztőket.</string>
+    <string name="alarms_missing">Nincs a kérést kezelő óraalkalmazás.</string>
     <string name="search_title">Webes keresés</string>
     <string name="search_question">Megnyissam a keresést ezzel: „%1$s”?</string>
-    <string name="search_done">Asszisztens: Átadtam a keresést az Androidnak.</string>
-    <string name="search_missing">Asszisztens: Nincs telepített keresőalkalmazás.</string>
-    <string name="action_denied">Asszisztens: Az Android nem engedélyezte a műveletet.</string>
+    <string name="search_done">Átadtam a keresést az Androidnak.</string>
+    <string name="search_missing">Nincs telepített keresőalkalmazás.</string>
+    <string name="action_denied">Az Android nem engedélyezte a műveletet.</string>
+
+    <string-array name="quick_commands">
+        <item>szia</item>
+        <item>idő</item>
+        <item>dátum</item>
+        <item>akku</item>
+        <item>számológép</item>
+        <item>ébresztők</item>
+        <item>segítség</item>
+    </string-array>
 </resources>

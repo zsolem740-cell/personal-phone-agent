@@ -9,7 +9,6 @@ import android.os.BatteryManager
 import android.os.Bundle
 import android.provider.AlarmClock
 import android.view.inputmethod.EditorInfo
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
@@ -18,59 +17,75 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : Activity() {
-    private val messages = ArrayList<String>()
-    private lateinit var adapter: ArrayAdapter<String>
+    private val messages = ArrayList<ChatMessage>()
+    private lateinit var adapter: MessageAdapter
     private lateinit var list: ListView
+    private lateinit var input: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         list = findViewById(R.id.message_list)
-        adapter = ArrayAdapter(this, R.layout.item_message, R.id.message_text, messages)
+        adapter = MessageAdapter(this, messages)
         list.adapter = adapter
 
-        val input = findViewById<EditText>(R.id.command_input)
-        findViewById<Button>(R.id.send_button).setOnClickListener { submit(input) }
+        input = findViewById(R.id.command_input)
+        findViewById<Button>(R.id.send_button).setOnClickListener { submit() }
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
-                submit(input)
+                submit()
                 true
             } else {
                 false
             }
         }
 
-        append(getString(R.string.welcome_message))
+        setupQuickCommands()
+        appendAssistant(getString(R.string.welcome_message))
     }
 
-    private fun submit(input: EditText) {
+    private fun setupQuickCommands() {
+        val container = findViewById<android.widget.LinearLayout>(R.id.chips_container)
+        val commands = resources.getStringArray(R.array.quick_commands)
+        for (command in commands) {
+            val chip = layoutInflater.inflate(R.layout.item_chip, container, false) as Button
+            chip.text = command
+            chip.setOnClickListener {
+                input.setText(command)
+                submit()
+            }
+            container.addView(chip)
+        }
+    }
+
+    private fun submit() {
         val request = input.text.toString().trim().take(500)
         input.text.clear()
         if (request.isEmpty()) {
-            append(getString(R.string.empty_command))
+            appendAssistant(getString(R.string.empty_command))
             return
         }
-        append(getString(R.string.you_prefix, request))
+        appendUser(request)
         handle(request)
     }
 
     private fun handle(request: String) {
         when (val command = CommandRouter.parse(request)) {
-            is Command.Greeting -> append(getString(R.string.answer_greeting))
-            is Command.Time -> append(getString(R.string.answer_time, currentTime("HH:mm")))
-            is Command.Date -> append(getString(R.string.answer_date, currentTime("yyyy. MMMM d., EEEE")))
+            is Command.Greeting -> appendAssistant(getString(R.string.answer_greeting))
+            is Command.Time -> appendAssistant(getString(R.string.answer_time, currentTime("HH:mm")))
+            is Command.Date -> appendAssistant(getString(R.string.answer_date, currentTime("yyyy. MMMM d., EEEE")))
             is Command.Battery -> {
                 val percent = batteryPercent()
                 if (percent < 0) {
-                    append(getString(R.string.answer_battery_unknown))
+                    appendAssistant(getString(R.string.answer_battery_unknown))
                 } else {
-                    append(getString(R.string.answer_battery, percent))
+                    appendAssistant(getString(R.string.answer_battery, percent))
                 }
             }
-            is Command.Help -> append(getString(R.string.answer_help))
-            is Command.Empty -> append(getString(R.string.empty_command))
-            is Command.Unknown -> append(getString(R.string.answer_unknown))
+            is Command.Help -> appendAssistant(getString(R.string.answer_help))
+            is Command.Empty -> appendAssistant(getString(R.string.empty_command))
+            is Command.Unknown -> appendAssistant(getString(R.string.answer_unknown))
             is Command.Calculator -> confirmAction(
                 getString(R.string.calculator_title),
                 getString(R.string.calculator_question)
@@ -98,22 +113,22 @@ class MainActivity : Activity() {
     private fun openCalculator() {
         try {
             startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALCULATOR))
-            append(getString(R.string.calculator_done))
+            appendAssistant(getString(R.string.calculator_done))
         } catch (_: ActivityNotFoundException) {
-            append(getString(R.string.calculator_missing))
+            appendAssistant(getString(R.string.calculator_missing))
         } catch (_: SecurityException) {
-            append(getString(R.string.action_denied))
+            appendAssistant(getString(R.string.action_denied))
         }
     }
 
     private fun openAlarms() {
         try {
             startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS))
-            append(getString(R.string.alarms_done))
+            appendAssistant(getString(R.string.alarms_done))
         } catch (_: ActivityNotFoundException) {
-            append(getString(R.string.alarms_missing))
+            appendAssistant(getString(R.string.alarms_missing))
         } catch (_: SecurityException) {
-            append(getString(R.string.action_denied))
+            appendAssistant(getString(R.string.action_denied))
         }
     }
 
@@ -121,11 +136,11 @@ class MainActivity : Activity() {
         try {
             val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
             startActivity(intent)
-            append(getString(R.string.search_done))
+            appendAssistant(getString(R.string.search_done))
         } catch (_: ActivityNotFoundException) {
-            append(getString(R.string.search_missing))
+            appendAssistant(getString(R.string.search_missing))
         } catch (_: SecurityException) {
-            append(getString(R.string.action_denied))
+            appendAssistant(getString(R.string.action_denied))
         }
     }
 
@@ -138,8 +153,12 @@ class MainActivity : Activity() {
     private fun currentTime(pattern: String): String =
         SimpleDateFormat(pattern, Locale.getDefault()).format(Date())
 
-    private fun append(text: String) {
-        messages.add(text)
+    private fun appendUser(text: String) = appendMessage(fromUser = true, text = text)
+
+    private fun appendAssistant(text: String) = appendMessage(fromUser = false, text = text)
+
+    private fun appendMessage(fromUser: Boolean, text: String) {
+        messages.add(ChatMessage(fromUser, text, currentTime("HH:mm")))
         adapter.notifyDataSetChanged()
         list.post { list.setSelection(messages.size - 1) }
     }

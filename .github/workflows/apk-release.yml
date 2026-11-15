@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK_NAME="Telefonasszisztens-v0.2.0.apk"
+          APK_NAME="Telefonasszisztens-v0.2.1.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK_NAME"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK_NAME"
           sha256sum "$APK_NAME" > SHA256SUMS.txt

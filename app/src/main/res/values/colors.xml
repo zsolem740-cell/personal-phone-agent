@@ -5,4 +5,8 @@
     <color name="input_background">#F2F4F7</color>
     <color name="icon_background">#0B57D0</color>
     <color name="message_text">#1F1F1F</color>
+    <color name="message_time_user">#B3FFFFFF</color>
+    <color name="message_time_assistant">#5F6368</color>
+    <color name="bubble_assistant">#E8EAED</color>
+    <color name="chip_stroke">#C9CDD4</color>
 </resources>
