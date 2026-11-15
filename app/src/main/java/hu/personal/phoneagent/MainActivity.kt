@@ -85,6 +85,7 @@ class MainActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        CrashReporter.install(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         IntegrationLog.init(this)
@@ -161,14 +162,52 @@ class MainActivity : Activity() {
         showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
         updateMetrics()
-        SolarisFeed.schedule(this)
-        if (savedInstanceState == null) handleIncomingIntent(intent)
+        try {
+            SolarisFeed.schedule(this)
+        } catch (e: Exception) {
+            CrashReporter.recordHandled(this, "SolarisFeed.schedule", e)
+        }
+        if (savedInstanceState == null) safeHandleIncomingIntent(intent)
+        showLastCrashReportIfAny()
+    }
+
+    private fun safeHandleIncomingIntent(intent: Intent?) {
+        try {
+            handleIncomingIntent(intent)
+        } catch (e: Exception) {
+            CrashReporter.recordHandled(this, "handleIncomingIntent", e)
+        }
+    }
+
+    private fun showLastCrashReportIfAny() {
+        val report = CrashReporter.takeLastReport(this) ?: return
+        AlertDialog.Builder(this)
+            .setTitle("Hibajelentés az előző futásból")
+            .setMessage(report.take(4000))
+            .setPositiveButton("Megosztás") { _, _ ->
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Telefonasszisztens hibajelentés")
+                    putExtra(Intent.EXTRA_TEXT, report)
+                }
+                try {
+                    startActivity(Intent.createChooser(send, "Hibajelentés küldése"))
+                } catch (_: Exception) {
+                }
+            }
+            .setNeutralButton("Másolás") { _, _ ->
+                val cm = getSystemService(android.content.ClipboardManager::class.java)
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText("hibajelentés", report))
+                Toast.makeText(this, "Vágólapra másolva", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Bezárás", null)
+            .show()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleIncomingIntent(intent)
+        safeHandleIncomingIntent(intent)
     }
 
     override fun onResume() {
