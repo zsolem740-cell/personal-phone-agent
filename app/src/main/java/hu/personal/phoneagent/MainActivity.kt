@@ -31,6 +31,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.ListView
 import android.widget.Spinner
 import android.widget.TextView
@@ -57,6 +58,10 @@ class MainActivity : Activity() {
     private lateinit var metricSpeech: TextView
     private val orbAnimators = ArrayList<ObjectAnimator>()
     private var speakPulse: ObjectAnimator? = null
+    private lateinit var consoleView: View
+    private lateinit var chatView: View
+    private lateinit var drawerOverlay: View
+    private lateinit var chatPreviewText: TextView
 
     private val notes = ArrayList<String>()
     private var tts: TextToSpeech? = null
@@ -124,6 +129,16 @@ class MainActivity : Activity() {
 
         setupQuickActions()
         startRingAnimations()
+
+        consoleView = findViewById(R.id.console_view)
+        chatView = findViewById(R.id.chat_view)
+        drawerOverlay = findViewById(R.id.drawer_overlay)
+        chatPreviewText = findViewById(R.id.chat_preview_text)
+
+        setupNavigation()
+        findViewById<View>(R.id.chat_preview).setOnClickListener { showChat() }
+        findViewById<ImageButton>(R.id.chat_mic_button).setOnClickListener { startSpeechInput() }
+        showConsole()
 
         tts = TextToSpeech(this) { status ->
             ttsReady = status == TextToSpeech.SUCCESS
@@ -251,6 +266,7 @@ class MainActivity : Activity() {
     }
 
     private fun runCommand(command: String) {
+        showChat()
         appendUser(command)
         handle(command)
     }
@@ -259,6 +275,76 @@ class MainActivity : Activity() {
         messages.clear()
         adapter.notifyDataSetChanged()
         appendAssistant(getString(R.string.chat_cleared))
+    }
+
+    private fun setupNavigation() {
+        findViewById<View>(R.id.nav_earth).setOnClickListener { showConsole() }
+        findViewById<View>(R.id.nav_ai).setOnClickListener { openDrawer() }
+        findViewById<View>(R.id.nav_call).setOnClickListener { showChat(); runCommand(getString(R.string.quick_command_phone)) }
+        findViewById<View>(R.id.nav_maps).setOnClickListener { showChat(); runCommand(getString(R.string.quick_command_maps)) }
+        findViewById<View>(R.id.nav_sms).setOnClickListener { showChat(); runCommand(getString(R.string.quick_command_sms)) }
+
+        drawerOverlay.setOnClickListener { closeDrawer() }
+        findViewById<ImageButton>(R.id.drawer_close).setOnClickListener { closeDrawer() }
+        findViewById<Button>(R.id.drawer_ai_console).setOnClickListener {
+            closeDrawer()
+            showChat()
+        }
+        findViewById<Button>(R.id.drawer_notes).setOnClickListener {
+            closeDrawer()
+            showChat()
+            listNotes()
+        }
+        findViewById<Button>(R.id.drawer_reminders).setOnClickListener {
+            closeDrawer()
+            showChat()
+            listReminders()
+        }
+        findViewById<Button>(R.id.drawer_phone_settings).setOnClickListener {
+            closeDrawer()
+            showChat()
+            runCommand(getString(R.string.quick_command_settings))
+        }
+        findViewById<Button>(R.id.drawer_ai_settings).setOnClickListener { showAiSettings() }
+    }
+
+    private fun showConsole() {
+        consoleView.visibility = View.VISIBLE
+        chatView.visibility = View.GONE
+        updateNavSelection(R.id.nav_earth)
+    }
+
+    private fun showChat() {
+        consoleView.visibility = View.GONE
+        chatView.visibility = View.VISIBLE
+        updateNavSelection(R.id.nav_ai)
+    }
+
+    private fun openDrawer() {
+        drawerOverlay.visibility = View.VISIBLE
+    }
+
+    private fun closeDrawer() {
+        drawerOverlay.visibility = View.GONE
+    }
+
+    private fun updateNavSelection(selectedId: Int) {
+        val items = listOf(
+            Triple(R.id.nav_earth, R.id.nav_earth_icon, R.id.nav_earth_label),
+            Triple(R.id.nav_ai, R.id.nav_ai_icon, R.id.nav_ai_label),
+            Triple(R.id.nav_call, R.id.nav_call_icon, R.id.nav_call_label),
+            Triple(R.id.nav_maps, R.id.nav_maps_icon, R.id.nav_maps_label),
+            Triple(R.id.nav_sms, R.id.nav_sms_icon, R.id.nav_sms_label)
+        )
+        for ((layoutId, iconId, labelId) in items) {
+            val selected = layoutId == selectedId
+            findViewById<ImageView>(iconId).setColorFilter(
+                getColor(if (selected) R.color.cyan else R.color.text_muted)
+            )
+            findViewById<TextView>(labelId).setTextColor(
+                getColor(if (selected) R.color.cyan else R.color.text_muted)
+            )
+        }
     }
 
     private enum class OrbState { IDLE, LISTEN, THINK, SPEAK }
@@ -870,6 +956,7 @@ class MainActivity : Activity() {
         messages.add(ChatMessage(fromUser, text, currentTime("HH:mm")))
         adapter.notifyDataSetChanged()
         list.post { list.setSelection(messages.size - 1) }
+        if (!fromUser) chatPreviewText.text = text
         if (!fromUser && speakEnabled && ttsReady) {
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "assistant_response")
         }

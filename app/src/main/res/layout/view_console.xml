@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:id="@+id/clock_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:letterSpacing="0.03"
+            android:textColor="@color/text_primary"
+            android:textSize="52sp" />
+
+        <TextView
+            android:id="@+id/clock_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="184dp"
+            android:layout_marginTop="8dp">
+
+            <View
+                android:id="@+id/ring_one"
+                android:layout_width="170dp"
+                android:layout_height="170dp"
+                android:layout_gravity="center"
+                android:background="@drawable/ring_outer" />
+
+            <View
+                android:id="@+id/ring_two"
+                android:layout_width="170dp"
+                android:layout_height="170dp"
+                android:layout_gravity="center"
+                android:background="@drawable/ring_outer" />
+
+            <LinearLayout
+                android:id="@+id/mic_button"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
+                android:layout_gravity="center"
+                android:background="@drawable/mic_orb"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/orb_icon"
+                    android:layout_width="54dp"
+                    android:layout_height="54dp"
+                    android:background="@null"
+                    android:contentDescription="@string/mic_button_desc"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_mic"
+                    android:tint="@color/cyan" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:letterSpacing="0.3"
+                    android:text="@string/orb_label"
+                    android:textColor="@color/cyan"
+                    android:textSize="8sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/state_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/mic_hint"
+            android:textColor="@color/text_muted"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="14dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/panel_background"
+            android:orientation="vertical"
+            android:padding="13dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:letterSpacing="0.1"
+                    android:text="@string/panel_status_title"
+                    android:textColor="@color/cyan"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_active"
+                    android:textColor="@color/green_status"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="11dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="5dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/metric_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="11dp">
+
+                    <TextView
+                        android:id="@+id/metric_battery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/cyan"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/metric_battery_label"
+                        android:textColor="@color/text_muted"
+                        android:textSize="9sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="5dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/metric_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="11dp">
+
+                    <TextView
+                        android:id="@+id/metric_assistant"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/cyan"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/metric_assistant_label"
+                        android:textColor="@color/text_muted"
+                        android:textSize="9sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/metric_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="11dp">
+
+                    <TextView
+                        android:id="@+id/metric_speech"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/cyan"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/metric_speech_label"
+                        android:textColor="@color/text_muted"
+                        android:textSize="9sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="14dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/panel_background"
+            android:orientation="vertical"
+            android:padding="13dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.1"
+                android:text="@string/panel_quick_title"
+                android:textColor="@color/cyan"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <LinearLayout android:id="@+id/quick_phone" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_phone" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_call" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_sms" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_message" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_sms" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_maps" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_map" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_maps" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_calc" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_calc" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_calc" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <LinearLayout android:id="@+id/quick_contacts" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_contacts" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_contacts" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_camera" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_camera" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_camera" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_settings" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_gear" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_settings" />
+                </LinearLayout>
+
+                <LinearLayout android:id="@+id/quick_notes" style="@style/QuickAction">
+                    <ImageView style="@style/QuickIcon" android:src="@drawable/ic_note" />
+                    <TextView style="@style/QuickLabel" android:text="@string/quick_notes" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/chat_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="14dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/panel_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:padding="13dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.1"
+                android:text="@string/panel_chat_title"
+                android:textColor="@color/cyan"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/chat_preview_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="@color/message_text"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/chat_open"
+                android:textColor="@color/cyan"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

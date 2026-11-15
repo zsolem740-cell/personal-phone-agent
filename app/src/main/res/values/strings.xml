@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Telefonasszisztens</string>
-    <string name="logo_title">◈ TELEFONASSZISZTENS</string>
-    <string name="status_online">● RENDSZER ONLINE</string>
+    <string name="logo_title">◈ SOLARIS AI</string>
+    <string name="status_online">● CONTROL CENTER</string>
     <string name="mic_hint">Érintsd meg a mikrofont, vagy írj be egy parancsot alul</string>
     <string name="send">Küldés</string>
     <string name="input_hint">Parancs, például: segítség</string>
@@ -155,4 +155,20 @@
     <string name="quick_command_notes">jegyzetek</string>
     <string name="chat_clear_desc">Beszélgetés törlése</string>
     <string name="chat_cleared">A beszélgetés törölve. Miben segíthetek?</string>
+
+    <string name="nav_earth">Föld</string>
+    <string name="nav_ai">AI</string>
+    <string name="nav_call">Hívás</string>
+    <string name="nav_maps">Navigáció</string>
+    <string name="nav_sms">Üzenet</string>
+    <string name="drawer_title">◈ SOLARIS CONTROL</string>
+    <string name="drawer_subtitle">Intelligens rendszervezérlés</string>
+    <string name="drawer_close_desc">Menü bezárása</string>
+    <string name="drawer_ai_console">🤖 AI-konzol megnyitása</string>
+    <string name="drawer_notes">📝 Jegyzetek megtekintése</string>
+    <string name="drawer_reminders">⏰ Emlékeztetők listája</string>
+    <string name="drawer_phone_settings">⚙️ Telefonbeállítások megnyitása</string>
+    <string name="drawer_ai_settings">✦ AI-agy beállításai</string>
+    <string name="drawer_footnote">Az AI-motor beépítve: beszélgess, kérdezz, vagy vezesd vele a telefont.</string>
+    <string name="chat_open">Megnyitás ▸</string>
 </resources>

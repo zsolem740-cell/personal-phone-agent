@@ -20,4 +20,5 @@
     <color name="icon_background">#1764D9</color>
 
 <color name="orb_purple">#A66AFF</color>
+    <color name="header_bg">#0A1929</color>
 </resources>
