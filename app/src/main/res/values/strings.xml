@@ -14,7 +14,7 @@
     <string name="answer_date">Ma %1$s.</string>
     <string name="answer_battery">Az akkumulátor töltöttsége körülbelül %1$d százalék.</string>
     <string name="answer_battery_unknown">Az akkumulátor töltöttségét most nem tudom lekérni.</string>
-    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; telefon; üzenetek; névjegyek; térkép; jegyzetelj …; jegyzetek; felolvasás be; felolvasás ki; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
+    <string name="answer_help">Parancsok: szia; idő; dátum; akku; számológép; ébresztők; böngésző; beállítások; kamera; wi-fi; telefon; üzenetek; névjegyek; térkép; jegyzetelj …; jegyzetek; emlékeztess 18:30 üzenet; emlékeztess 20 perc múlva üzenet; emlékeztetők; hívd fel &lt;név&gt;; felolvasás be; felolvasás ki; keresés …; segítség. A telefonos műveletekhez mindig jóváhagyást kérek.</string>
     <string name="answer_unknown">Ezt még nem ismerem. Írd be: segítség.</string>
     <string name="yes">Igen</string>
     <string name="no">Mégse</string>
@@ -64,6 +64,24 @@
     <string name="notes_cleared">A jegyzetek törölve.</string>
     <string name="notes_clear_title">Jegyzetek törlése</string>
     <string name="notes_clear_question">Töröljem az összes elmentett jegyzetet?</string>
+    <string name="reminders_channel_name">Emlékeztetők</string>
+    <string name="reminder_notification_title">Emlékeztető</string>
+    <string name="reminder_usage">Használat: emlékeztess 18:30 üzenet, vagy emlékeztess 20 perc múlva üzenet</string>
+    <string name="reminder_in_minutes">%1$d perc múlva</string>
+    <string name="reminder_in_hours">%1$d óra múlva</string>
+    <string name="reminder_confirm_title">Emlékeztető beállítása</string>
+    <string name="reminder_confirm_question">Beállítsam az emlékeztetőt ekkor: %1$s? Üzenet: %2$s</string>
+    <string name="reminder_scheduled">Emlékeztető beállítva: %1$s</string>
+    <string name="reminders_empty">Nincs beállított emlékeztető.</string>
+    <string name="reminders_list_header">Emlékeztetőid:</string>
+    <string name="reminders_cleared">Az emlékeztetők törölve.</string>
+    <string name="reminders_clear_title">Emlékeztetők törlése</string>
+    <string name="reminders_clear_question">Töröljem az összes emlékeztetőt?</string>
+    <string name="call_title">Hívás indítása</string>
+    <string name="call_question">Tárcsázhatom ezt a számot? %1$s: %2$s</string>
+    <string name="call_contact_missing">Nem találtam ilyen nevű névjegyet: %1$s</string>
+    <string name="call_permission_denied">Névjegy-engedély nélkül nem tudok keresni. Engedélyezd a Névjegyek hozzáférést a Beállításokban.</string>
+    <string name="call_done">Megnyitottam a tárcsázót a talált számmal.</string>
     <string name="speech_prompt">Mondd ki a parancsot</string>
     <string name="speech_missing">Nincs telepített beszédfelismerő.</string>
     <string name="answer_speak_on">Felolvasás bekapcsolva. Minden válaszomat felolvasom.</string>
@@ -85,6 +103,7 @@
         <item>üzenetek</item>
         <item>térkép</item>
         <item>jegyzetek</item>
+        <item>emlékeztetők</item>
         <item>segítség</item>
     </string-array>
 </resources>

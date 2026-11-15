@@ -23,6 +23,12 @@ sealed class Command {
     data class Note(val text: String) : Command()
     data object NotesList : Command()
     data object NotesClear : Command()
+    data class ReminderIn(val delayMillis: Long, val text: String) : Command()
+    data class ReminderAt(val hour: Int, val minute: Int, val text: String) : Command()
+    data object ReminderUsage : Command()
+    data object RemindersList : Command()
+    data object RemindersClear : Command()
+    data class Call(val name: String) : Command()
     data class Search(val query: String) : Command()
     data object Empty : Command()
     data object Unknown : Command()
@@ -54,8 +60,54 @@ object CommandRouter {
             "térkép", "terkep", "navigáció", "navigacio", "nyisd meg a térképet", "nyisd meg a terkepet" -> Command.Maps
             "jegyzetek" -> Command.NotesList
             "jegyzetek törlése", "jegyzetek torlese" -> Command.NotesClear
-            else -> noteQuery(normalized) ?: searchQuery(normalized) ?: Command.Unknown
+            "emlékeztetők", "emlekeztetok" -> Command.RemindersList
+            "emlékeztetők törlése", "emlekeztetok torlese" -> Command.RemindersClear
+            else -> reminderQuery(normalized)
+                ?: callQuery(normalized)
+                ?: noteQuery(normalized)
+                ?: searchQuery(normalized)
+                ?: Command.Unknown
         }
+    }
+
+    private fun reminderQuery(normalized: String): Command? {
+        for (prefix in listOf("emlékeztess ", "emlekeztess ", "emlékeztess:", "emlekeztess:")) {
+            if (!normalized.startsWith(prefix)) continue
+            val rest = normalized.removePrefix(prefix).trim()
+
+            val relativeMinutes = Regex("^(\\d{1,3})\\s*perc\\s*(múlva|mulva)\\s+(.+)$").find(rest)
+            if (relativeMinutes != null) {
+                val minutes = relativeMinutes.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
+                return Command.ReminderIn(minutes * 60_000L, relativeMinutes.groupValues[3])
+            }
+
+            val relativeHours = Regex("^(\\d{1,2})\\s*(óra|ora)\\s*(múlva|mulva)\\s+(.+)$").find(rest)
+            if (relativeHours != null) {
+                val hours = relativeHours.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
+                return Command.ReminderIn(hours * 3_600_000L, relativeHours.groupValues[4])
+            }
+
+            val absolute = Regex("^(\\d{1,2}):(\\d{2})\\s+(.+)$").find(rest)
+            if (absolute != null) {
+                val hour = absolute.groupValues[1].toIntOrNull()
+                val minute = absolute.groupValues[2].toIntOrNull()
+                if (hour != null && minute != null && hour in 0..23 && minute in 0..59) {
+                    return Command.ReminderAt(hour, minute, absolute.groupValues[3])
+                }
+            }
+            return Command.ReminderUsage
+        }
+        return null
+    }
+
+    private fun callQuery(normalized: String): Command.Call? {
+        for (prefix in listOf("hívd fel ", "hivd fel ")) {
+            if (normalized.startsWith(prefix)) {
+                val name = normalized.removePrefix(prefix).trim()
+                if (name.isNotEmpty()) return Command.Call(name)
+            }
+        }
+        return null
     }
 
     private fun noteQuery(normalized: String): Command.Note? {

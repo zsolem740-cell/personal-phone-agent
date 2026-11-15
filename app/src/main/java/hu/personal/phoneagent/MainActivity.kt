@@ -1,17 +1,25 @@
 package hu.personal.phoneagent
 
+import android.Manifest
 import android.app.Activity
+import android.app.AlarmManager
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.AlarmClock
+import android.provider.ContactsContract
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.inputmethod.EditorInfo
@@ -21,6 +29,7 @@ import android.widget.ImageButton
 import android.widget.ListView
 import android.widget.TextView
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -38,6 +47,7 @@ class MainActivity : Activity() {
     private var ttsReady = false
     private var speakEnabled = false
     private lateinit var preferences: SharedPreferences
+    private var pendingCallName: String? = null
 
     private val clockHandler = Handler(Looper.getMainLooper())
     private val clockRunnable = object : Runnable {
@@ -56,6 +66,9 @@ class MainActivity : Activity() {
         preferences.getString(PREF_NOTES, "")?.let { stored ->
             notes.addAll(stored.split('\n').filter { it.isNotBlank() })
         }
+
+        createNotificationChannel()
+        requestNotificationPermissionIfNeeded()
 
         clockTime = findViewById(R.id.clock_time)
         clockDate = findViewById(R.id.clock_date)
@@ -89,6 +102,7 @@ class MainActivity : Activity() {
         }
 
         setupQuickCommands()
+        showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
     }
 
@@ -121,6 +135,41 @@ class MainActivity : Activity() {
                 appendUser(recognized)
                 handle(recognized)
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_CONTACTS) return
+        val name = pendingCallName
+        pendingCallName = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED && name != null) {
+            lookupAndConfirmCall(name)
+        } else {
+            appendAssistant(getString(R.string.call_permission_denied))
+        }
+    }
+
+    private fun createNotificationChannel() {
+        val manager = getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            ReminderReceiver.CHANNEL_ID,
+            getString(R.string.reminders_channel_name),
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
         }
     }
 
@@ -178,6 +227,42 @@ class MainActivity : Activity() {
                 getString(R.string.notes_clear_title),
                 getString(R.string.notes_clear_question)
             ) { clearNotes() }
+            is Command.ReminderUsage -> appendAssistant(getString(R.string.reminder_usage))
+            is Command.ReminderIn -> {
+                val hours = command.delayMillis / 3_600_000L
+                val whenText = if (command.delayMillis % 3_600_000L == 0L && hours > 0) {
+                    getString(R.string.reminder_in_hours, hours)
+                } else {
+                    getString(R.string.reminder_in_minutes, command.delayMillis / 60_000L)
+                }
+                confirmAction(
+                    getString(R.string.reminder_confirm_title),
+                    getString(R.string.reminder_confirm_question, whenText, command.text)
+                ) { scheduleReminder(System.currentTimeMillis() + command.delayMillis, command.text) }
+            }
+            is Command.ReminderAt -> {
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, command.hour)
+                    set(Calendar.MINUTE, command.minute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                    if (timeInMillis <= System.currentTimeMillis()) {
+                        add(Calendar.DAY_OF_YEAR, 1)
+                    }
+                }
+                val whenText = SimpleDateFormat("MM. dd. HH:mm", Locale.getDefault())
+                    .format(Date(calendar.timeInMillis))
+                confirmAction(
+                    getString(R.string.reminder_confirm_title),
+                    getString(R.string.reminder_confirm_question, whenText, command.text)
+                ) { scheduleReminder(calendar.timeInMillis, command.text) }
+            }
+            is Command.RemindersList -> listReminders()
+            is Command.RemindersClear -> confirmAction(
+                getString(R.string.reminders_clear_title),
+                getString(R.string.reminders_clear_question)
+            ) { clearReminders() }
+            is Command.Call -> startCallFlow(command.name)
             is Command.Calculator -> confirmAction(
                 getString(R.string.calculator_title),
                 getString(R.string.calculator_question)
@@ -278,6 +363,121 @@ class MainActivity : Activity() {
 
     private fun persistNotes() {
         preferences.edit().putString(PREF_NOTES, notes.joinToString("\n")).apply()
+    }
+
+    private fun scheduleReminder(timeMillis: Long, text: String) {
+        val reminder = ReminderStore.add(this, timeMillis, text)
+        val intent = Intent(this, ReminderReceiver::class.java)
+            .putExtra(ReminderReceiver.EXTRA_ID, reminder.id)
+            .putExtra(ReminderReceiver.EXTRA_TEXT, reminder.text)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            reminder.id,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        getSystemService(AlarmManager::class.java)
+            .setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMillis, pendingIntent)
+        val whenText = SimpleDateFormat("MM. dd. HH:mm", Locale.getDefault()).format(Date(timeMillis))
+        appendAssistant(getString(R.string.reminder_scheduled, whenText))
+    }
+
+    private fun listReminders() {
+        val reminders = ReminderStore.list(this)
+        if (reminders.isEmpty()) {
+            appendAssistant(getString(R.string.reminders_empty))
+            return
+        }
+        val format = SimpleDateFormat("MM. dd. HH:mm", Locale.getDefault())
+        val listed = reminders.joinToString("\n") { reminder ->
+            "- ${reminder.text} (${format.format(Date(reminder.timeMillis))})"
+        }
+        appendAssistant(getString(R.string.reminders_list_header) + "\n" + listed)
+    }
+
+    private fun clearReminders() {
+        val alarmManager = getSystemService(AlarmManager::class.java)
+        for (reminder in ReminderStore.list(this)) {
+            val intent = Intent(this, ReminderReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                reminder.id,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pendingIntent)
+        }
+        ReminderStore.clear(this)
+        appendAssistant(getString(R.string.reminders_cleared))
+    }
+
+    private fun showOverdueReminders() {
+        for (reminder in ReminderStore.overdue(this)) {
+            appendAssistant(getString(R.string.reminder_notification_title) + ": " + reminder.text)
+            ReminderStore.remove(this, reminder.id)
+        }
+    }
+
+    private fun startCallFlow(name: String) {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            lookupAndConfirmCall(name)
+        } else {
+            pendingCallName = name
+            requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), REQUEST_CONTACTS)
+        }
+    }
+
+    private fun lookupAndConfirmCall(name: String) {
+        val contact = findContact(name)
+        if (contact == null) {
+            appendAssistant(getString(R.string.call_contact_missing, name))
+            return
+        }
+        val (displayName, number) = contact
+        confirmAction(
+            getString(R.string.call_title),
+            getString(R.string.call_question, displayName, number)
+        ) {
+            try {
+                startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
+                appendAssistant(getString(R.string.call_done))
+            } catch (_: ActivityNotFoundException) {
+                appendAssistant(getString(R.string.phone_missing))
+            }
+        }
+    }
+
+    private fun findContact(name: String): Pair<String, String>? {
+        val target = name.lowercase(Locale.ROOT)
+        var exact: Pair<String, String>? = null
+        var partial: Pair<String, String>? = null
+        val cursor = contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            ),
+            null,
+            null,
+            null
+        ) ?: return null
+        cursor.use { c ->
+            while (c.moveToNext()) {
+                val displayName = c.getString(0) ?: continue
+                val number = c.getString(1) ?: continue
+                val lower = displayName.lowercase(Locale.ROOT)
+                if (lower == target) {
+                    exact = displayName to number
+                    break
+                }
+                if (exact == null && partial == null &&
+                    (lower.contains(target) || target.contains(lower))
+                ) {
+                    partial = displayName to number
+                }
+            }
+        }
+        return exact ?: partial
     }
 
     private fun confirmAction(title: String, message: String, action: () -> Unit) {
@@ -435,6 +635,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_SPEECH = 1001
+        private const val REQUEST_CONTACTS = 1002
+        private const val REQUEST_NOTIFICATIONS = 1003
         private const val PREF_SPEAK = "speak_enabled"
         private const val PREF_NOTES = "notes"
         private const val CLOCK_INTERVAL_MS = 1000L
