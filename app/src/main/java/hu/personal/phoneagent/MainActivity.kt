@@ -94,6 +94,22 @@ class MainActivity : Activity() {
                 getString(R.string.alarms_title),
                 getString(R.string.alarms_question)
             ) { openAlarms() }
+            is Command.Browser -> confirmAction(
+                getString(R.string.browser_title),
+                getString(R.string.browser_question)
+            ) { openBrowser() }
+            is Command.Settings -> confirmAction(
+                getString(R.string.settings_title),
+                getString(R.string.settings_question)
+            ) { openSettings() }
+            is Command.Camera -> confirmAction(
+                getString(R.string.camera_title),
+                getString(R.string.camera_question)
+            ) { openCamera() }
+            is Command.Wifi -> confirmAction(
+                getString(R.string.wifi_title),
+                getString(R.string.wifi_question)
+            ) { openWifiSettings() }
             is Command.Search -> confirmAction(
                 getString(R.string.search_title),
                 getString(R.string.search_question, command.query)
@@ -127,6 +143,50 @@ class MainActivity : Activity() {
             appendAssistant(getString(R.string.alarms_done))
         } catch (_: ActivityNotFoundException) {
             appendAssistant(getString(R.string.alarms_missing))
+        } catch (_: SecurityException) {
+            appendAssistant(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openBrowser() {
+        try {
+            startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER))
+            appendAssistant(getString(R.string.browser_done))
+        } catch (_: ActivityNotFoundException) {
+            appendAssistant(getString(R.string.browser_missing))
+        } catch (_: SecurityException) {
+            appendAssistant(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+            appendAssistant(getString(R.string.settings_done))
+        } catch (_: ActivityNotFoundException) {
+            appendAssistant(getString(R.string.settings_missing))
+        } catch (_: SecurityException) {
+            appendAssistant(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openCamera() {
+        try {
+            startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CAMERA))
+            appendAssistant(getString(R.string.camera_done))
+        } catch (_: ActivityNotFoundException) {
+            appendAssistant(getString(R.string.camera_missing))
+        } catch (_: SecurityException) {
+            appendAssistant(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openWifiSettings() {
+        try {
+            startActivity(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS))
+            appendAssistant(getString(R.string.wifi_done))
+        } catch (_: ActivityNotFoundException) {
+            appendAssistant(getString(R.string.wifi_missing))
         } catch (_: SecurityException) {
             appendAssistant(getString(R.string.action_denied))
         }

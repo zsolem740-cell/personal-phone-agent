@@ -10,6 +10,10 @@ sealed class Command {
     data object Help : Command()
     data object Calculator : Command()
     data object Alarms : Command()
+    data object Browser : Command()
+    data object Settings : Command()
+    data object Camera : Command()
+    data object Wifi : Command()
     data class Search(val query: String) : Command()
     data object Empty : Command()
     data object Unknown : Command()
@@ -29,6 +33,10 @@ object CommandRouter {
             "segítség", "segitseg", "súgó", "sugo" -> Command.Help
             "számológép", "szamologep", "nyisd meg a számológépet", "nyisd meg a szamologepet" -> Command.Calculator
             "ébresztők", "ebresztok", "ébresztő", "ebreszto" -> Command.Alarms
+            "böngésző", "bongeszo", "internet", "nyisd meg a böngészőt", "nyisd meg a bongeszot" -> Command.Browser
+            "beállítások", "beallitasok", "nyisd meg a beállításokat", "nyisd meg a beallitasokat" -> Command.Settings
+            "kamera", "nyisd meg a kamerát", "nyisd meg a kamerat" -> Command.Camera
+            "wi-fi", "wifi", "wlan" -> Command.Wifi
             else -> searchQuery(normalized) ?: Command.Unknown
         }
     }
