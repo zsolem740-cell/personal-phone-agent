@@ -2,18 +2,44 @@ package hu.personal.phoneagent
 
 import java.util.Locale
 
-object CommandRouter {
-    enum class Command { GREETING, TIME, HELP, CALCULATOR, EMPTY, UNKNOWN }
+sealed class Command {
+    data object Greeting : Command()
+    data object Time : Command()
+    data object Date : Command()
+    data object Battery : Command()
+    data object Help : Command()
+    data object Calculator : Command()
+    data object Alarms : Command()
+    data class Search(val query: String) : Command()
+    data object Empty : Command()
+    data object Unknown : Command()
+}
 
+object CommandRouter {
     fun parse(text: String): Command {
-        val normalized = text.trim().lowercase(Locale.ROOT).replace(Regex("\\s+"), " ").trimEnd('?', '.', '!')
+        val normalized = text.trim().lowercase(Locale.ROOT)
+            .replace(Regex("\\s+"), " ")
+            .trimEnd('?', '.', '!')
         return when (normalized) {
-            "szia", "hello" -> Command.GREETING
-            "idő", "ido", "mennyi az idő" -> Command.TIME
-            "segítség", "segitseg" -> Command.HELP
-            "számológép", "szamologep", "nyisd meg a számológépet", "nyisd meg a szamologepet" -> Command.CALCULATOR
-            "" -> Command.EMPTY
-            else -> Command.UNKNOWN
+            "" -> Command.Empty
+            "szia", "hello", "helló" -> Command.Greeting
+            "idő", "ido", "mennyi az idő", "hány óra van", "hany ora van" -> Command.Time
+            "dátum", "datum", "milyen nap van" -> Command.Date
+            "akku", "akkumulátor", "akkumulator" -> Command.Battery
+            "segítség", "segitseg", "súgó", "sugo" -> Command.Help
+            "számológép", "szamologep", "nyisd meg a számológépet", "nyisd meg a szamologepet" -> Command.Calculator
+            "ébresztők", "ebresztok", "ébresztő", "ebreszto" -> Command.Alarms
+            else -> searchQuery(normalized) ?: Command.Unknown
         }
+    }
+
+    private fun searchQuery(normalized: String): Command.Search? {
+        for (prefix in listOf("keresés ", "kereses ", "keress ")) {
+            if (normalized.startsWith(prefix)) {
+                val query = normalized.removePrefix(prefix).trim()
+                if (query.isNotEmpty()) return Command.Search(query)
+            }
+        }
+        return null
     }
 }

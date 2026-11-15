@@ -2,102 +2,145 @@ package hu.personal.phoneagent
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.os.BatteryManager
 import android.os.Bundle
+import android.provider.AlarmClock
+import android.view.inputmethod.EditorInfo
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import android.widget.ListView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class MainActivity : Activity() {
-    private lateinit var transcript: TextView
-    private lateinit var scroll: ScrollView
-    private val history = ArrayList<String>()
+    private val messages = ArrayList<String>()
+    private lateinit var adapter: ArrayAdapter<String>
+    private lateinit var list: ListView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        history.addAll(savedInstanceState?.getStringArrayList("history") ?: arrayListOf("Asszisztens: Helyi prototípus. Írd be: segítség. A beszélgetést nem mentem tartósan."))
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val padding = (16 * resources.displayMetrics.density).toInt()
-            setPadding(padding, padding, padding, padding)
-        }
-        layout.addView(TextView(this).apply { text = "Telefonasszisztens"; textSize = 24f })
-        transcript = TextView(this).apply {
-            id = R.id.response_output
-            textSize = 18f
-            setTextIsSelectable(true)
-        }
-        scroll = ScrollView(this).apply { addView(transcript) }
-        layout.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        val input = EditText(this).apply {
-            id = R.id.command_input
-            hint = "Parancs, például: segítség"
-            maxLines = 3
-        }
-        layout.addView(input)
-        layout.addView(Button(this).apply {
-            text = "Küldés"
-            setOnClickListener {
-                val request = input.text.toString().trim().take(2000)
-                input.text.clear()
-                handle(request)
+        setContentView(R.layout.activity_main)
+
+        list = findViewById(R.id.message_list)
+        adapter = ArrayAdapter(this, R.layout.item_message, R.id.message_text, messages)
+        list.adapter = adapter
+
+        val input = findViewById<EditText>(R.id.command_input)
+        findViewById<Button>(R.id.send_button).setOnClickListener { submit(input) }
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                submit(input)
+                true
+            } else {
+                false
             }
-        })
-        setContentView(layout)
-        render()
+        }
+
+        append(getString(R.string.welcome_message))
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putStringArrayList("history", ArrayList(history))
-        super.onSaveInstanceState(outState)
-    }
-
-    private fun append(text: String) {
-        history.add(text)
-        while (history.size > 100) history.removeAt(0)
-        render()
-    }
-
-    private fun render() {
-        transcript.text = history.joinToString("\n\n")
-        scroll.post { scroll.fullScroll(ScrollView.FOCUS_DOWN) }
+    private fun submit(input: EditText) {
+        val request = input.text.toString().trim().take(500)
+        input.text.clear()
+        if (request.isEmpty()) {
+            append(getString(R.string.empty_command))
+            return
+        }
+        append(getString(R.string.you_prefix, request))
+        handle(request)
     }
 
     private fun handle(request: String) {
-        if (request.isNotEmpty()) append("Te: $request")
-        when (CommandRouter.parse(request)) {
-            CommandRouter.Command.GREETING -> append("Asszisztens: Szia!")
-            CommandRouter.Command.TIME -> append("Asszisztens: " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()))
-            CommandRouter.Command.HELP -> append("Asszisztens: Parancsok: szia; idő; segítség; nyisd meg a számológépet. A megnyitáshoz külön jóváhagyást kérek. Nincs AI-modell vagy hangvezérlés.")
-            CommandRouter.Command.EMPTY -> append("Asszisztens: Először írj be egy parancsot.")
-            CommandRouter.Command.UNKNOWN -> append("Asszisztens: Ezt még nem ismerem. Írd be: segítség.")
-            CommandRouter.Command.CALCULATOR -> confirmCalculator()
+        when (val command = CommandRouter.parse(request)) {
+            is Command.Greeting -> append(getString(R.string.answer_greeting))
+            is Command.Time -> append(getString(R.string.answer_time, currentTime("HH:mm")))
+            is Command.Date -> append(getString(R.string.answer_date, currentTime("yyyy. MMMM d., EEEE")))
+            is Command.Battery -> {
+                val percent = batteryPercent()
+                if (percent < 0) {
+                    append(getString(R.string.answer_battery_unknown))
+                } else {
+                    append(getString(R.string.answer_battery, percent))
+                }
+            }
+            is Command.Help -> append(getString(R.string.answer_help))
+            is Command.Empty -> append(getString(R.string.empty_command))
+            is Command.Unknown -> append(getString(R.string.answer_unknown))
+            is Command.Calculator -> confirmAction(
+                getString(R.string.calculator_title),
+                getString(R.string.calculator_question)
+            ) { openCalculator() }
+            is Command.Alarms -> confirmAction(
+                getString(R.string.alarms_title),
+                getString(R.string.alarms_question)
+            ) { openAlarms() }
+            is Command.Search -> confirmAction(
+                getString(R.string.search_title),
+                getString(R.string.search_question, command.query)
+            ) { openWebSearch(command.query) }
         }
     }
 
-    private fun confirmCalculator() {
-        append("Asszisztens: Megerősítést kérek a számológép megnyitásához.")
+    private fun confirmAction(title: String, message: String, action: () -> Unit) {
         AlertDialog.Builder(this)
-            .setTitle("Számológép megnyitása")
-            .setMessage("Megnyithatom a telefon számológép-alkalmazását? Nem küldök neki adatot.")
-            .setPositiveButton("Megnyitás") { _, _ ->
-                try {
-                    startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALCULATOR))
-                    append("Asszisztens: Átadtam a megnyitási kérést az Androidnak.")
-                } catch (_: ActivityNotFoundException) {
-                    append("Asszisztens: Nincs a kérést kezelő számológép.")
-                } catch (_: SecurityException) {
-                    append("Asszisztens: Az Android nem engedélyezte a megnyitást.")
-                }
-            }
-            .setNegativeButton("Mégse") { _, _ -> append("Asszisztens: Megnyitás megszakítva.") }
-            .setOnCancelListener { append("Asszisztens: Megnyitás megszakítva.") }
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.yes)) { _, _ -> action() }
+            .setNegativeButton(getString(R.string.no), null)
             .show()
+    }
+
+    private fun openCalculator() {
+        try {
+            startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALCULATOR))
+            append(getString(R.string.calculator_done))
+        } catch (_: ActivityNotFoundException) {
+            append(getString(R.string.calculator_missing))
+        } catch (_: SecurityException) {
+            append(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openAlarms() {
+        try {
+            startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+            append(getString(R.string.alarms_done))
+        } catch (_: ActivityNotFoundException) {
+            append(getString(R.string.alarms_missing))
+        } catch (_: SecurityException) {
+            append(getString(R.string.action_denied))
+        }
+    }
+
+    private fun openWebSearch(query: String) {
+        try {
+            val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
+            startActivity(intent)
+            append(getString(R.string.search_done))
+        } catch (_: ActivityNotFoundException) {
+            append(getString(R.string.search_missing))
+        } catch (_: SecurityException) {
+            append(getString(R.string.action_denied))
+        }
+    }
+
+    private fun batteryPercent(): Int {
+        val batteryManager = getSystemService(BatteryManager::class.java)
+        val percent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        return if (percent in 1..100) percent else -1
+    }
+
+    private fun currentTime(pattern: String): String =
+        SimpleDateFormat(pattern, Locale.getDefault()).format(Date())
+
+    private fun append(text: String) {
+        messages.add(text)
+        adapter.notifyDataSetChanged()
+        list.post { list.setSelection(messages.size - 1) }
     }
 }

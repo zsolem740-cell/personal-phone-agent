@@ -23,11 +23,20 @@ jobs:
           packages: 'platform-tools'
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Decode signing keystore
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+        run: echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/stable.keystore"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build and check
-        run: gradle --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/stable.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle --no-daemon :app:assembleRelease
       - name: Publish APK and checksum
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,8 +44,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp app/build/outputs/apk/debug/app-debug.apk Telefonasszisztens-debug.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Telefonasszisztens-debug.apk
-          sha256sum Telefonasszisztens-debug.apk > SHA256SUMS.txt
+          APK_NAME="Telefonasszisztens-v0.2.0.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$APK_NAME"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK_NAME"
+          sha256sum "$APK_NAME" > SHA256SUMS.txt
           TAG="test-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$TAG" Telefonasszisztens-debug.apk SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title "Telefonasszisztens tesztverzio $TAG" --notes "Tesztcelu debug APK, nem stabil kiadas. A Google Play Protect egy korabban letoltott valtozat telepiteset blokkolta; ennek oka meg nincs tisztazva. Ez a kiadas nem biztonsagi tanusitas es nem javitja igazoltan a tiltast. Ne kapcsold ki a vedelmet. A zold build nem helyettesit virusvizsgalatot vagy telefonos tesztet. Forras commit: $GITHUB_SHA. Kozvetlen letolteshez a Telefonasszisztens-debug.apk fajlt valaszd, ne a Source code archivumot."
+          gh release create "$TAG" "$APK_NAME" SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title "Telefonasszisztens tesztverzio $TAG" --notes "Telepitheto teszt APK, stabil alairassal. Ez a kiadas nem biztonsagi tanusitas. A Google Play Protect egy korabbi valtozat telepiteset blokkolta; ennek oka meg nincs tisztazva, ezert ha a telefon figyelmeztet, ne keruldes meg a vedelmet. Forras commit: $GITHUB_SHA. Kozvetlen letolteshez a $APK_NAME fajlt valaszd, ne a Source code archivumot. Az elozo, ideiglenes alairasu verzio torlese utan telepitheto; azota az alairas mar nem valtozik, igy a jovobeli frissitesek a regi verzio fol telepulnek."
