@@ -24,12 +24,12 @@ class MainActivity : Activity() {
         }
         val input = EditText(this).apply {
             hint = "Írd be: segítség vagy idő"
-            id = 1001
+            id = R.id.command_input
         }
         val output = TextView(this).apply {
             text = "Helyi prototípus. Nem használ hálózatot és nem vezérli a telefont."
             textSize = 18f
-            id = 1002
+            id = R.id.response_output
             setFreezesText(true)
         }
         val send = Button(this).apply {
