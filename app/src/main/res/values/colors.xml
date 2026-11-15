@@ -18,4 +18,6 @@
     <color name="message_time_user">#B3FFFFFF</color>
     <color name="message_time_assistant">#8299AD</color>
     <color name="icon_background">#1764D9</color>
+
+<color name="orb_purple">#A66AFF</color>
 </resources>

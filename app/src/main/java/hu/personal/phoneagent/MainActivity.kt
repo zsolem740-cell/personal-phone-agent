@@ -11,6 +11,7 @@ import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
+import android.animation.ObjectAnimator
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.BatteryManager
@@ -22,6 +23,7 @@ import android.provider.AlarmClock
 import android.provider.ContactsContract
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.AdapterView
@@ -45,6 +47,16 @@ class MainActivity : Activity() {
     private lateinit var speakToggle: ImageButton
     private lateinit var clockTime: TextView
     private lateinit var clockDate: TextView
+    private lateinit var micButton: View
+    private lateinit var orbIcon: ImageButton
+    private lateinit var stateText: TextView
+    private lateinit var ringOne: View
+    private lateinit var ringTwo: View
+    private lateinit var metricBattery: TextView
+    private lateinit var metricAssistant: TextView
+    private lateinit var metricSpeech: TextView
+    private val orbAnimators = ArrayList<ObjectAnimator>()
+    private var speakPulse: ObjectAnimator? = null
 
     private val notes = ArrayList<String>()
     private var tts: TextToSpeech? = null
@@ -54,6 +66,7 @@ class MainActivity : Activity() {
     private var pendingCallName: String? = null
 
     private val clockHandler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val clockRunnable = object : Runnable {
         override fun run() {
             updateClock()
@@ -96,24 +109,43 @@ class MainActivity : Activity() {
         speakToggle.setOnClickListener { toggleSpeak() }
         updateSpeakToggle()
 
-        findViewById<ImageButton>(R.id.mic_button).setOnClickListener { startSpeechInput() }
+        micButton = findViewById(R.id.mic_button)
+        orbIcon = findViewById(R.id.orb_icon)
+        stateText = findViewById(R.id.state_text)
+        ringOne = findViewById(R.id.ring_one)
+        ringTwo = findViewById(R.id.ring_two)
+        metricBattery = findViewById(R.id.metric_battery)
+        metricAssistant = findViewById(R.id.metric_assistant)
+        metricSpeech = findViewById(R.id.metric_speech)
+
+        micButton.setOnClickListener { startSpeechInput() }
         findViewById<ImageButton>(R.id.ai_settings_button).setOnClickListener { showAiSettings() }
+        findViewById<ImageButton>(R.id.chat_clear_button).setOnClickListener { clearChat() }
+
+        setupQuickActions()
+        startRingAnimations()
 
         tts = TextToSpeech(this) { status ->
             ttsReady = status == TextToSpeech.SUCCESS
             if (ttsReady) {
                 tts?.language = Locale("hu", "HU")
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) = setOrbState(OrbState.SPEAK)
+                    override fun onDone(utteranceId: String?) = setOrbState(OrbState.IDLE)
+                    override fun onError(utteranceId: String?) = setOrbState(OrbState.IDLE)
+                })
             }
         }
 
-        setupQuickCommands()
         showOverdueReminders()
         appendAssistant(getString(R.string.welcome_message))
+        updateMetrics()
     }
 
     override fun onResume() {
         super.onResume()
         updateClock()
+        updateMetrics()
         clockHandler.postDelayed(clockRunnable, CLOCK_INTERVAL_MS)
     }
 
@@ -123,6 +155,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        orbAnimators.forEach { it.cancel() }
+        speakPulse?.cancel()
         tts?.stop()
         tts?.shutdown()
         super.onDestroy()
@@ -132,6 +166,7 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_SPEECH) return
+        setOrbState(OrbState.IDLE)
         if (resultCode == RESULT_OK) {
             val recognized = data
                 ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
@@ -181,20 +216,118 @@ class MainActivity : Activity() {
     private fun updateClock() {
         clockTime.text = currentTime("HH:mm:ss")
         clockDate.text = currentTime("yyyy. MMMM d., EEEE")
+        val percent = batteryPercent()
+        metricBattery.text =
+            if (percent < 0) "--%" else getString(R.string.metric_battery_value, percent)
     }
 
-    private fun setupQuickCommands() {
-        val container = findViewById<android.widget.LinearLayout>(R.id.chips_container)
-        val commands = resources.getStringArray(R.array.quick_commands)
-        for (command in commands) {
-            val chip = layoutInflater.inflate(R.layout.item_chip, container, false) as Button
-            chip.text = command
-            chip.setOnClickListener {
-                input.setText(command)
-                submit()
+    private fun updateMetrics() {
+        metricAssistant.text = getString(
+            if (AIClient.loadConfig(this) != null) {
+                R.string.metric_assistant_ai
+            } else {
+                R.string.metric_assistant_local
             }
-            container.addView(chip)
+        )
+        metricSpeech.text = getString(
+            if (speakEnabled) R.string.metric_speech_on else R.string.metric_speech_off
+        )
+    }
+
+    private fun setupQuickActions() {
+        val quickCommands = mapOf(
+            R.id.quick_phone to getString(R.string.quick_command_phone),
+            R.id.quick_sms to getString(R.string.quick_command_sms),
+            R.id.quick_maps to getString(R.string.quick_command_maps),
+            R.id.quick_calc to getString(R.string.quick_command_calc),
+            R.id.quick_contacts to getString(R.string.quick_command_contacts),
+            R.id.quick_camera to getString(R.string.quick_command_camera),
+            R.id.quick_settings to getString(R.string.quick_command_settings),
+            R.id.quick_notes to getString(R.string.quick_command_notes)
+        )
+        for ((buttonId, command) in quickCommands) {
+            findViewById<View>(buttonId).setOnClickListener { runCommand(command) }
         }
+    }
+
+    private fun runCommand(command: String) {
+        appendUser(command)
+        handle(command)
+    }
+
+    private fun clearChat() {
+        messages.clear()
+        adapter.notifyDataSetChanged()
+        appendAssistant(getString(R.string.chat_cleared))
+    }
+
+    private enum class OrbState { IDLE, LISTEN, THINK, SPEAK }
+
+    private fun setOrbState(state: OrbState) {
+        mainHandler.post { applyOrbState(state) }
+    }
+
+    private fun applyOrbState(state: OrbState) {
+        when (state) {
+            OrbState.LISTEN -> {
+                micButton.setBackgroundResource(R.drawable.mic_orb_listen)
+                orbIcon.setColorFilter(getColor(R.color.green_status))
+                stateText.setText(R.string.state_listening)
+            }
+            OrbState.THINK -> {
+                micButton.setBackgroundResource(R.drawable.mic_orb_think)
+                orbIcon.setColorFilter(getColor(R.color.orb_purple))
+                stateText.setText(R.string.state_thinking)
+            }
+            OrbState.SPEAK -> {
+                micButton.setBackgroundResource(R.drawable.mic_orb)
+                orbIcon.setColorFilter(getColor(R.color.cyan))
+                stateText.setText(R.string.state_speaking)
+                startSpeakPulse()
+            }
+            OrbState.IDLE -> {
+                micButton.setBackgroundResource(R.drawable.mic_orb)
+                orbIcon.setColorFilter(getColor(R.color.cyan))
+                stateText.setText(R.string.mic_hint)
+                stopSpeakPulse()
+            }
+        }
+    }
+
+    private fun startRingAnimations() {
+        for (ring in listOf(ringOne, ringTwo)) {
+            val animators = listOf(
+                ObjectAnimator.ofFloat(ring, View.SCALE_X, 0.92f, 1.13f),
+                ObjectAnimator.ofFloat(ring, View.SCALE_Y, 0.92f, 1.13f),
+                ObjectAnimator.ofFloat(ring, View.ALPHA, 0.8f, 0f)
+            )
+            for (animator in animators) {
+                animator.repeatCount = ObjectAnimator.INFINITE
+                animator.repeatMode = ObjectAnimator.RESTART
+                animator.duration = 4000
+                if (ring === ringTwo) {
+                    animator.startDelay = 2000
+                }
+                animator.start()
+                orbAnimators.add(animator)
+            }
+        }
+    }
+
+    private fun startSpeakPulse() {
+        if (speakPulse?.isRunning == true) return
+        speakPulse = ObjectAnimator.ofFloat(micButton, View.SCALE_X, 1f, 1.04f).apply {
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            duration = 600
+            start()
+        }
+    }
+
+    private fun stopSpeakPulse() {
+        speakPulse?.cancel()
+        speakPulse = null
+        micButton.scaleX = 1f
     }
 
     private fun submit() {
@@ -322,9 +455,11 @@ class MainActivity : Activity() {
             return
         }
         appendAssistant(getString(R.string.ai_thinking))
+        setOrbState(OrbState.THINK)
         val history = messages.dropLast(1).takeLast(12)
         AIClient.request(config, getString(R.string.ai_system_prompt), history, request) { response ->
             if (isFinishing || isDestroyed) return@request
+            setOrbState(OrbState.IDLE)
             if (response == null) {
                 appendAssistant(getString(R.string.ai_error))
             } else {
@@ -435,6 +570,7 @@ class MainActivity : Activity() {
         speakEnabled = enabled
         preferences.edit().putBoolean(PREF_SPEAK, enabled).apply()
         updateSpeakToggle()
+        updateMetrics()
         appendAssistant(
             getString(if (enabled) R.string.answer_speak_on else R.string.answer_speak_off)
         )

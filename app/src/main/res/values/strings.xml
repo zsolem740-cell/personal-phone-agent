@@ -121,4 +121,38 @@
         <item>emlékeztetők</item>
         <item>segítség</item>
     </string-array>
+    <string name="orb_label">SOLARIS CORE</string>
+    <string name="state_listening">Figyelek… Mondd a parancsot!</string>
+    <string name="state_thinking">Gondolkodom…</string>
+    <string name="state_speaking">Solaris válaszol…</string>
+    <string name="panel_status_title">◈ RENDSZERÁLLAPOT</string>
+    <string name="status_active">AKTÍV</string>
+    <string name="panel_quick_title">GYORS PARANCSOK</string>
+    <string name="panel_chat_title">✦ BESZÉLGETÉS</string>
+    <string name="metric_battery_label">AKKUMULÁTOR</string>
+    <string name="metric_battery_value">%1$d%%</string>
+    <string name="metric_assistant_label">ASSZISZTENS</string>
+    <string name="metric_assistant_ai">AI</string>
+    <string name="metric_assistant_local">Helyi</string>
+    <string name="metric_speech_label">FELOLVASÁS</string>
+    <string name="metric_speech_on">Be</string>
+    <string name="metric_speech_off">Ki</string>
+    <string name="quick_call">Hívás</string>
+    <string name="quick_sms">Üzenet</string>
+    <string name="quick_maps">Navigáció</string>
+    <string name="quick_calc">Számológép</string>
+    <string name="quick_contacts">Névjegyek</string>
+    <string name="quick_camera">Kamera</string>
+    <string name="quick_settings">Beállítás</string>
+    <string name="quick_notes">Jegyzetek</string>
+    <string name="quick_command_phone">telefon</string>
+    <string name="quick_command_sms">üzenetek</string>
+    <string name="quick_command_maps">térkép</string>
+    <string name="quick_command_calc">számológép</string>
+    <string name="quick_command_contacts">névjegyek</string>
+    <string name="quick_command_camera">kamera</string>
+    <string name="quick_command_settings">beállítások</string>
+    <string name="quick_command_notes">jegyzetek</string>
+    <string name="chat_clear_desc">Beszélgetés törlése</string>
+    <string name="chat_cleared">A beszélgetés törölve. Miben segíthetek?</string>
 </resources>
