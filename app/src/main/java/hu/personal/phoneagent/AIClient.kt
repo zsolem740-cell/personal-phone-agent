@@ -65,14 +65,52 @@ object AIClient {
 
     fun testConnection(config: Config, onResult: (AiResult) -> Unit) {
         Thread {
-            val result = runRequest(
-                config,
-                "Röviden válaszolj.",
-                emptyList(),
-                "Ez egy kapcsolat teszt. Válaszolj pontosan ennyit: OK"
-            )
+            val online = hasInternet()
+            val result = if (!online) {
+                AiResult.Error(
+                    "A telefonnak nincs működő internetkapcsolata – még a google.com sem érhető el. " +
+                        "Próbáld mobil adatkapcsolattal, vagy ellenőrizd a Wi-Fi hálózatot " +
+                        "(nyilvános hotspotoknál gyakran először bejelentkezni kell a böngészőben)."
+                )
+            } else {
+                val apiResult = runRequest(
+                    config,
+                    "Röviden válaszolj.",
+                    emptyList(),
+                    "Ez egy kapcsolat teszt. Válaszolj pontosan ennyit: OK"
+                )
+                if (apiResult is AiResult.Error && isNetworkErrorMessage(apiResult.message)) {
+                    AiResult.Error(
+                        "Az internetkapcsolat működik (google.com elérhető), de az AI szervere nem " +
+                            "volt elérhető időben. Ezt okozhatja a hálózat korlátozása vagy átmeneti " +
+                            "túlterheltség. Részletek: ${apiResult.message}"
+                    )
+                } else {
+                    apiResult
+                }
+            }
             Handler(Looper.getMainLooper()).post { onResult(result) }
         }.start()
+    }
+
+    private fun isNetworkErrorMessage(message: String): Boolean =
+        message.contains("elérni a szervert") ||
+            message.contains("internetkapcsolat") ||
+            message.contains("megnyitni a kapcsolatot")
+
+    private fun hasInternet(): Boolean = try {
+        val connection = URL("https://www.google.com/generate_204")
+            .openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 5_000
+        connection.readTimeout = 5_000
+        try {
+            connection.responseCode in 200..399
+        } finally {
+            connection.disconnect()
+        }
+    } catch (_: Exception) {
+        false
     }
 
     private fun runRequest(
