@@ -171,4 +171,11 @@
     <string name="drawer_ai_settings">✦ AI-agy beállításai</string>
     <string name="drawer_footnote">Az AI-motor beépítve: beszélgess, kérdezz, vagy vezesd vele a telefont.</string>
     <string name="chat_open">Megnyitás ▸</string>
+
+    <string name="ai_model_help">Modellnév-példák: Google: gemini-4-hydrogen, gemini-3.8-flash • OpenAI: gpt-6-luna • Anthropic: claude-sonnet-5-5. A nevet pontosan, kisbetűvel kell megadni.</string>
+    <string name="ai_test_button">Kapcsolat tesztelése</string>
+    <string name="ai_test_running">Tesztelés folyamatban…</string>
+    <string name="ai_test_no_key">Előbb add meg az API-kulcsot a teszteléshez.</string>
+    <string name="ai_test_ok">Siker! A szerver válasza: %1$s</string>
+    <string name="ai_test_fail">Sikertelen: %1$s</string>
 </resources>

@@ -543,13 +543,12 @@ class MainActivity : Activity() {
         appendAssistant(getString(R.string.ai_thinking))
         setOrbState(OrbState.THINK)
         val history = messages.dropLast(1).takeLast(12)
-        AIClient.request(config, getString(R.string.ai_system_prompt), history, request) { response ->
+        AIClient.request(config, getString(R.string.ai_system_prompt), history, request) { result ->
             if (isFinishing || isDestroyed) return@request
             setOrbState(OrbState.IDLE)
-            if (response == null) {
-                appendAssistant(getString(R.string.ai_error))
-            } else {
-                applyAiResponse(response)
+            when (result) {
+                is AIClient.AiResult.Success -> applyAiResponse(result.text)
+                is AIClient.AiResult.Error -> appendAssistant(result.message)
             }
         }
     }
@@ -615,6 +614,31 @@ class MainActivity : Activity() {
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        val testButton = view.findViewById<Button>(R.id.ai_test_button)
+        val testStatus = view.findViewById<TextView>(R.id.ai_test_status)
+        testButton.setOnClickListener {
+            val key = keyInput.text.toString().trim()
+            val provider = providerKeys[providerSpinner.selectedItemPosition]
+            if (key.isEmpty()) {
+                testStatus.text = getString(R.string.ai_test_no_key)
+                return@setOnClickListener
+            }
+            val model = modelInput.text.toString().trim()
+                .ifBlank { AIClient.defaultModel(provider) }
+            testStatus.text = getString(R.string.ai_test_running)
+            testButton.isEnabled = false
+            AIClient.testConnection(AIClient.Config(provider, key, model)) { result ->
+                if (isFinishing || isDestroyed) return@testConnection
+                testButton.isEnabled = true
+                testStatus.text = when (result) {
+                    is AIClient.AiResult.Success ->
+                        getString(R.string.ai_test_ok, result.text.take(80))
+                    is AIClient.AiResult.Error ->
+                        getString(R.string.ai_test_fail, result.message)
+                }
+            }
         }
 
         AlertDialog.Builder(this)
