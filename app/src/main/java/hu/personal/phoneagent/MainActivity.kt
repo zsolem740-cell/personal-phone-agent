@@ -35,7 +35,9 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -82,6 +84,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        IntegrationLog.init(this)
 
         preferences = getPreferences(MODE_PRIVATE)
         speakEnabled = preferences.getBoolean(PREF_SPEAK, false)
@@ -180,6 +183,10 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_EXPORT_LOG) {
+            handleExportResult(resultCode, data)
+            return
+        }
         if (requestCode != REQUEST_SPEECH) return
         setOrbState(OrbState.IDLE)
         if (resultCode == RESULT_OK) {
@@ -306,6 +313,10 @@ class MainActivity : Activity() {
             runCommand(getString(R.string.quick_command_settings))
         }
         findViewById<Button>(R.id.drawer_ai_settings).setOnClickListener { showAiSettings() }
+        findViewById<Button>(R.id.drawer_diagnostics).setOnClickListener {
+            closeDrawer()
+            showDiagnostics()
+        }
     }
 
     private fun showConsole() {
@@ -674,6 +685,97 @@ class MainActivity : Activity() {
             .show()
     }
 
+    // ------------------------------------------------------------------
+    // Diagnosztika: Solaris-kapcsolati napló megtekintése, exportálása, törlése
+    // ------------------------------------------------------------------
+
+    private fun showDiagnostics() {
+        val items = arrayOf(
+            getString(R.string.diag_view_log),
+            getString(R.string.diag_export_log),
+            getString(R.string.diag_delete_logs)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.diag_title))
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> showConnectionLog()
+                    1 -> startLogExport()
+                    2 -> confirmDeleteLogs()
+                }
+            }
+            .setNegativeButton(getString(R.string.diag_close), null)
+            .show()
+    }
+
+    private fun showConnectionLog() {
+        IntegrationLog.readRecent(DIAG_LOG_LIMIT) { lines ->
+            val body = IntegrationLogFormatter.format(this, lines)
+            val dropped = IntegrationLog.droppedCount()
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val text = buildString {
+                    append(body.ifBlank { getString(R.string.diag_log_empty) })
+                    if (dropped > 0) {
+                        append("\n\n").append(getString(R.string.diag_log_dropped, dropped))
+                    }
+                    append("\n\n").append(getString(R.string.diag_log_footer, DIAG_LOG_LIMIT))
+                }
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.diag_log_title))
+                    .setMessage(text)
+                    .setPositiveButton(getString(R.string.diag_close), null)
+                    .show()
+            }
+        }
+    }
+
+    private fun startLogExport() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TITLE, "solaris-integration-log-${LocalDate.now()}.jsonl")
+        }
+        try {
+            startActivityForResult(intent, REQUEST_EXPORT_LOG)
+        } catch (_: ActivityNotFoundException) {
+            showToast(getString(R.string.diag_export_missing))
+        }
+    }
+
+    private fun handleExportResult(resultCode: Int, data: Intent?) {
+        val target = data?.data
+        if (resultCode != RESULT_OK || target == null) return
+        IntegrationLog.export(this, target) { ok ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                showToast(
+                    getString(if (ok) R.string.diag_export_done else R.string.diag_export_failed)
+                )
+            }
+        }
+    }
+
+    private fun confirmDeleteLogs() {
+        confirmAction(
+            getString(R.string.diag_delete_title),
+            getString(R.string.diag_delete_question)
+        ) {
+            IntegrationLog.deleteAll { ok ->
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    showToast(
+                        getString(if (ok) R.string.diag_delete_done else R.string.diag_delete_failed)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun showToast(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    }
+
     private fun startSpeechInput() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -1003,6 +1105,8 @@ class MainActivity : Activity() {
         private const val REQUEST_SPEECH = 1001
         private const val REQUEST_CONTACTS = 1002
         private const val REQUEST_NOTIFICATIONS = 1003
+        private const val REQUEST_EXPORT_LOG = 1004
+        private const val DIAG_LOG_LIMIT = 100
         private const val PREF_SPEAK = "speak_enabled"
         private const val PREF_NOTES = "notes"
         private const val CLOCK_INTERVAL_MS = 1000L
