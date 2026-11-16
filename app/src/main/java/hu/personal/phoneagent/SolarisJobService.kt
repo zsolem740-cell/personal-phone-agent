@@ -9,11 +9,19 @@ class SolarisJobService : JobService() {
 
     override fun onStartJob(params: JobParameters): Boolean {
         worker = Thread {
-            val result = SolarisFeed.fetch(applicationContext)
-            if (result is SolarisFeed.FetchResult.Success && result.isNew) {
-                SolarisFeed.maybeNotify(applicationContext, result.snapshot)
+            // A feldolgozó szál hibája ne döntse le az appot, és a feladat mindig lezáruljon.
+            var retry = true
+            try {
+                val result = SolarisFeed.fetch(applicationContext)
+                if (result is SolarisFeed.FetchResult.Success && result.isNew) {
+                    SolarisFeed.maybeNotify(applicationContext, result.snapshot)
+                }
+                retry = result is SolarisFeed.FetchResult.Failure
+            } catch (e: Throwable) {
+                runCatching { CrashReporter.recordHandled(applicationContext, "SolarisJobService", e) }
+            } finally {
+                runCatching { jobFinished(params, retry) }
             }
-            jobFinished(params, result is SolarisFeed.FetchResult.Failure)
         }.also { it.start() }
         return true
     }
