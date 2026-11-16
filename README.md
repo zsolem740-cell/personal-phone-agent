@@ -25,7 +25,8 @@ az eredeti írásmódjával kerül mentésre.
 ## AI-csevegés
 
 Ha nincs ismert parancs, a kérdés a beállított AI-szolgáltatóhoz megy (Google Gemini, OpenAI
-vagy Anthropic). Az API-kulcsot a felhasználó adja meg, és csak a telefonon tárolódik: a
+vagy Anthropic). A modell szolgáltatónként listából választható (az ajánlott elöl), más
+név az „Egyéni modellnév” ponttal adható meg. Az API-kulcsot a felhasználó adja meg, és csak a telefonon tárolódik: a
 Google-mentésből és az új telefonra átvitelből ki van zárva, ezért telefoncsere után újra
 meg kell adni. A Gemini napi ingyenes keretének kimerülésekor az app kiírja, mikor nullázódik
 a keret (csendes-óceáni éjfél, a telefon időzónájában megadva).
@@ -39,7 +40,11 @@ a keret (csendes-óceáni éjfél, a telefon időzónájában megadva).
 - Az értesítésre koppintás, a menü Solaris-pontja vagy a Solaris oldalról megosztott szöveg
   indítja az AI-értelmezést. Az adat életkorát az értelmezés pillanatában számolja:
   3 óra felett figyelmeztet, 24 óra felett nem tekinti aktuálisnak.
-- A helyi integrációs napló a telefonon marad; a Diagnosztika menüből fájlba exportálható.
+- A helyi integrációs napló a telefonon marad. A Diagnosztika menüből fájlba exportálható,
+  vagy jóváhagyás után fájlként megosztható (csak időpontok, események, hibakódok,
+  karakterszámok és a modell neve; kulcs és üzenetszöveg nincs benne).
+- Ha az értesítések le vannak tiltva, az app naponta legfeljebb egyszer szól, és a
+  beállításokba visz; az állapot a Diagnosztika menüben is látszik.
 
 ## Engedélyek
 
