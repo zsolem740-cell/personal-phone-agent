@@ -49,6 +49,12 @@
 
         <receiver android:name=".ReminderReceiver" android:exported="false" />
 
+        <provider
+            android:name=".LogShareProvider"
+            android:authorities="hu.personal.phoneagent.logshare"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <service
             android:name=".SolarisJobService"
             android:exported="false"

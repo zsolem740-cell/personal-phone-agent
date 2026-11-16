@@ -88,3 +88,23 @@ class AIClientTest {
         }
     }
 }
+
+class ModelListTest {
+    @Test
+    fun everyProviderHasModelsAndDefaultIsFirst() {
+        for (p in listOf(AIClient.PROVIDER_GEMINI, AIClient.PROVIDER_OPENAI, AIClient.PROVIDER_ANTHROPIC)) {
+            val models = AIClient.modelsFor(p)
+            assertTrue(p, models.isNotEmpty())
+            assertEquals(models.first(), AIClient.defaultModel(p))
+            assertEquals(models.size, models.toSet().size)
+        }
+    }
+
+    @Test
+    fun listsDoNotMixProviders() {
+        assertTrue(AIClient.modelsFor(AIClient.PROVIDER_GEMINI).all { it.startsWith("gemini-") })
+        assertTrue(AIClient.modelsFor(AIClient.PROVIDER_OPENAI).all { it.startsWith("gpt-") })
+        assertTrue(AIClient.modelsFor(AIClient.PROVIDER_ANTHROPIC).all { it.startsWith("claude-") })
+        assertEquals("gemini-3.5-flash-lite", AIClient.defaultModel(AIClient.PROVIDER_GEMINI))
+    }
+}
