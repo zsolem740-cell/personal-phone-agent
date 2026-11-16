@@ -16,6 +16,8 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 object AIClient {
@@ -218,7 +220,8 @@ object AIClient {
             mapOf(
                 "x-api-key" to config.apiKey,
                 "anthropic-version" to "2023-06-01"
-            )
+            ),
+            PROVIDER_ANTHROPIC
         )
         val content = response.optJSONArray("content")
             ?: throw AiException("Érthetetlen válasz érkezett a szerverről.")
@@ -248,7 +251,8 @@ object AIClient {
         val response = post(
             "https://api.openai.com/v1/chat/completions",
             body.toString(),
-            mapOf("Authorization" to "Bearer ${config.apiKey}")
+            mapOf("Authorization" to "Bearer ${config.apiKey}"),
+            PROVIDER_OPENAI
         )
         val choices = response.optJSONArray("choices")
             ?: throw AiException("Érthetetlen válasz érkezett a szerverről.")
@@ -287,23 +291,59 @@ object AIClient {
         val response = post(
             "https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent",
             body.toString(),
-            mapOf("x-goog-api-key" to config.apiKey)
+            mapOf("x-goog-api-key" to config.apiKey),
+            PROVIDER_GEMINI
         )
+        return parseGeminiResponse(response)
+    }
+
+    /**
+     * A Gemini-válasz feldolgozása: minden szövegrészt összefűz (a gondolkodási részeket
+     * kihagyja), és a blokkolt, illetve a hosszkorlát miatt levágott választ külön jelzi.
+     */
+    internal fun parseGeminiResponse(response: JSONObject): String {
+        val blockReason = response.optJSONObject("promptFeedback")?.optString("blockReason").orEmpty()
+        if (blockReason.isNotEmpty()) {
+            throw AiException("A Gemini biztonsági szűrője elutasította a kérést ($blockReason). Fogalmazd át, és próbáld újra.")
+        }
         val candidates = response.optJSONArray("candidates")
             ?: throw AiException("Érthetetlen válasz érkezett a szerverről.")
         if (candidates.length() == 0) throw AiException("A modell üres választ adott.")
-        return candidates.optJSONObject(0)
-            ?.optJSONObject("content")
-            ?.optJSONArray("parts")
-            ?.optJSONObject(0)
-            ?.optString("text")
-            ?.takeIf { it.isNotBlank() }
+        val candidate = candidates.optJSONObject(0)
+            ?: throw AiException("Érthetetlen válasz érkezett a szerverről.")
+        val finish = candidate.optString("finishReason")
+        val parts = candidate.optJSONObject("content")?.optJSONArray("parts")
+        val text = buildString {
+            if (parts != null) {
+                for (i in 0 until parts.length()) {
+                    val part = parts.optJSONObject(i) ?: continue
+                    if (part.optBoolean("thought", false)) continue
+                    append(part.optString("text"))
+                }
+            }
+        }.trim()
+        if (finish in GEMINI_BLOCKED) {
+            throw AiException("A Gemini biztonsági szűrője visszatartotta a választ ($finish). Fogalmazd át a kérdést.")
+        }
+        if (finish == "MAX_TOKENS") {
+            if (text.isEmpty()) throw AiException("A Gemini válasza a hosszkorlát miatt üresen szakadt meg. Kérj rövidebb választ.")
+            return "$text\n\n(A válasz a hosszkorlát miatt megszakadt.)"
+        }
+        if (text.isEmpty()) throw AiException("A modell üres választ adott.")
+        return text
     }
+
+    private val GEMINI_BLOCKED = setOf("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII")
 
     private val RETRYABLE_CODES = setOf(500, 502, 503, 504, 529)
     private val RETRY_DELAYS_MS = longArrayOf(2_000L, 5_000L)
 
-    private fun post(urlString: String, body: String, headers: Map<String, String>): JSONObject {
+    private fun post(
+        urlString: String,
+        body: String,
+        headers: Map<String, String>,
+        provider: String
+    ): JSONObject {
         val builder = Request.Builder()
             .url(urlString)
             .post(body.toRequestBody(jsonType))
@@ -322,7 +362,7 @@ object AIClient {
                         Thread.sleep(RETRY_DELAYS_MS[attempt])
                         attempt++
                     } else {
-                        throw AiException(httpErrorMessage(response.code, text))
+                        throw AiException(httpErrorMessage(response.code, text, provider))
                     }
                 }
             }
@@ -344,13 +384,18 @@ object AIClient {
         }
     }
 
-    private fun httpErrorMessage(code: Int, body: String): String {
+    internal fun httpErrorMessage(
+        code: Int,
+        body: String,
+        provider: String,
+        now: ZonedDateTime = ZonedDateTime.now()
+    ): String {
         val detail = extractApiErrorMessage(body)
         val base = when (code) {
             400 -> "Hibás kérés (HTTP 400)"
             401, 403 -> "Az API-kulcs érvénytelen, vagy nincs jogosultsága (HTTP $code)"
             404 -> "A megadott modell nem található (HTTP 404). Ellenőrizd a modellnevet!"
-            429 -> "Túl sok kérés – várj egy kicsit, majd próbáld újra (HTTP 429)"
+            429 -> rateLimitMessage(body, provider, now)
             in 500..599 -> "A szolgáltatás átmenetesen nem elérhető (HTTP $code), próbáld később"
             else -> "Kapcsolódási hiba (HTTP $code)"
         }
@@ -359,6 +404,33 @@ object AIClient {
         } else {
             "$base. Szerverüzenet: $detail"
         }
+    }
+
+    /** A napi keret kimerülését megkülönbözteti a rövid, percenkénti korláttól. */
+    private fun rateLimitMessage(body: String, provider: String, now: ZonedDateTime): String = when {
+        provider == PROVIDER_GEMINI && isDailyQuota(body) ->
+            "Elfogyott a Gemini napi ingyenes kerete erre a modellre (HTTP 429). " +
+                "A keret ${geminiQuotaReset(now)}-kor nullázódik. Addig válassz másik modellt, " +
+                "vagy kapcsold be a fizetős keretet a Google AI Studióban."
+        provider == PROVIDER_OPENAI && body.contains("insufficient_quota") ->
+            "Elfogyott az OpenAI-fiók egyenlege vagy kerete (HTTP 429). Ellenőrizd a számlázást."
+        else -> "Túl sok kérés rövid idő alatt (HTTP 429). Várj egy percet, majd próbáld újra."
+    }
+
+    private fun isDailyQuota(body: String): Boolean =
+        body.contains("PerDay", ignoreCase = true) || body.contains("per day", ignoreCase = true)
+
+    /**
+     * A Gemini napi kerete csendes-óceáni idő szerint éjfélkor nullázódik. Az időpontot
+     * a telefon időzónájában adja vissza (Budapesten általában 9:00, az óraátállítások
+     * közötti néhány hétben 8:00).
+     */
+    internal fun geminiQuotaReset(now: ZonedDateTime): String {
+        val pacific = ZoneId.of("America/Los_Angeles")
+        val nextMidnight = now.withZoneSameInstant(pacific).toLocalDate().plusDays(1).atStartOfDay(pacific)
+        val local = nextMidnight.withZoneSameInstant(now.zone)
+        val day = if (local.toLocalDate() == now.toLocalDate()) "ma" else "holnap"
+        return "$day ${local.hour}:${"%02d".format(local.minute)}"
     }
 
     private fun extractApiErrorMessage(body: String): String? = try {
