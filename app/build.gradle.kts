@@ -13,8 +13,8 @@ android {
         applicationId = "hu.personal.phoneagent"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "0.9.12"
+        versionCode = 24
+        versionName = "0.9.13"
     }
 
     if (keystorePath != null) {
