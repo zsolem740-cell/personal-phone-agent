@@ -255,4 +255,5 @@
     <string name="notif_later">Később</string>
     <string name="notif_never">Ne jelezd többet</string>
     <string name="notif_settings_missing">Nem sikerült megnyitni az értesítési beállításokat.</string>
+    <string name="solaris_cached_result">Az AI értelmezése (%1$s-kor készült; a Solaris-adat azóta nem változott, ezért nem kértem új választ, a keret nem fogyott):\n\n%2$s</string>
 </resources>
