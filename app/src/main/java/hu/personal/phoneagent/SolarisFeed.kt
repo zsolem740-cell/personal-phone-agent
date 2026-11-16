@@ -139,11 +139,10 @@ object SolarisFeed {
     fun maybeNotify(context: Context, snapshot: Snapshot) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = java.time.ZonedDateTime.now()
-        if (now.hour >= QUIET_FROM_HOUR || now.hour < QUIET_TO_HOUR) return
         val today = now.toLocalDate().toString()
         val alertsChanged = prefs.getString("notified_active", "") != snapshot.activeKeys
         val notifiedToday = prefs.getString("notified_day", null) == today
-        if (!alertsChanged && notifiedToday) return
+        if (!shouldNotify(now.hour, alertsChanged, notifiedToday)) return
 
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
@@ -153,6 +152,9 @@ object SolarisFeed {
                 NotificationManager.IMPORTANCE_DEFAULT
             )
         )
+        // Android 13+ rendszeren a letiltott értesítés csendben elveszik: ilyenkor nem
+        // jegyezzük fel, hogy szóltunk, így az engedély megadása után a következő futás pótolja.
+        if (!NotificationGate.canPost(manager, CHANNEL_ID)) return
         val open = PendingIntent.getActivity(
             context,
             NOTIFICATION_ID,
@@ -250,7 +252,7 @@ object SolarisFeed {
         add("Légnyomás", num("pressure"), " hPa")
         add("Légnyomás-változás 3 óra alatt", num("dp3"), " hPa")
         root.optJSONObject("csi")?.let { csi ->
-            csi.optDouble("csi").takeIf { !it.isNaN() }?.let { lines += "- Összetett kockázati index (CSI, 0–1): ${fmt(it, 3)}" }
+            csi.optDouble("csi").takeIf { !it.isNaN() }?.let { lines += "- $CSI_LABEL: ${fmt(it, 3)}" }
         }
         root.optJSONObject("obs")?.let { obs ->
             val st = obs.optJSONObject("station")
@@ -268,16 +270,52 @@ object SolarisFeed {
         lines += ""
         lines += "AZ ELMÚLT 24 ÓRA JELZÉSEI:"
         if (recentLines.isEmpty()) lines += "- nem volt jelzés" else lines.addAll(recentLines)
-        val ageHours = (System.currentTimeMillis() - updatedAt.toEpochMilli()) / 3_600_000L
-        if (ageHours >= STALE_HOURS) {
-            lines += ""
-            lines += "Figyelem: az adat $ageHours órája frissült utoljára."
-        }
         Snapshot(updated, lines.joinToString("\n"), activeKeys.sorted().joinToString(","))
     } catch (_: JSONException) {
         null
     } catch (_: java.time.format.DateTimeParseException) {
         null
+    }
+
+    /**
+     * A Solaris összevont stresszindexe (P6). Nyitott skálájú, nem valószínűség:
+     * a Solaris saját küszöbe 2,0, e fölött számít kiemeltnek.
+     */
+    const val CSI_LABEL = "Összevont stresszindex (CSI; nyitott skála, nem százalék; 2,0 felett kiemelt)"
+
+    private const val AGE_PREFIX = "Figyelem: az adat"
+    private const val DAY_HOURS = 24L
+
+    /**
+     * Az AI-nak átadott szöveg. Az adat életkorát a felhasználás pillanatában számolja,
+     * nem a letöltéskor, így egy másnap megnyitott értesítés sem tűnik frissnek.
+     * A 0.9.10 által tárolt, letöltéskori figyelmeztető sort eltávolítja.
+     */
+    fun textForAi(snapshot: Snapshot, nowMillis: Long = System.currentTimeMillis()): String {
+        val base = snapshot.text.lineSequence()
+            .filterNot { it.startsWith(AGE_PREFIX) }
+            .joinToString("\n")
+            .trimEnd()
+        val updatedAt = runCatching { Instant.parse(snapshot.updated) }.getOrNull()
+            ?: return base
+        val ageHours = (nowMillis - updatedAt.toEpochMilli()) / 3_600_000L
+        val warning = when {
+            ageHours >= DAY_HOURS ->
+                "$AGE_PREFIX $ageHours órával ezelőtt frissült, nem tekinthető aktuálisnak. " +
+                    "Ezt mondd ki a válasz elején."
+            ageHours >= STALE_HOURS -> "$AGE_PREFIX $ageHours órája frissült utoljára."
+            else -> null
+        }
+        return if (warning == null) base else "$base\n\n$warning"
+    }
+
+    /**
+     * Értesítési szabály, Android-függés nélkül (tesztelhető): csendes időben nem,
+     * egyébként akkor, ha változtak az aktív figyelmeztetések vagy aznap még nem szólt.
+     */
+    fun shouldNotify(hour: Int, alertsChanged: Boolean, notifiedToday: Boolean): Boolean {
+        if (hour >= QUIET_FROM_HOUR || hour < QUIET_TO_HOUR) return false
+        return alertsChanged || !notifiedToday
     }
 
     private fun fmt(value: Double, digits: Int): String =

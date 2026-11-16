@@ -674,7 +674,7 @@ class MainActivity : Activity() {
         }
         presentSolaris(
             UUID.randomUUID().toString(), SolarisFeed.summaryId(snapshot), snapshot.updated,
-            snapshot.text, askFirst = false
+            SolarisFeed.textForAi(snapshot), askFirst = false
         )
     }
 
@@ -695,7 +695,7 @@ class MainActivity : Activity() {
                         SolarisFeed.cancelNotification(this)
                         presentSolaris(
                             traceId, SolarisFeed.summaryId(result.snapshot), result.snapshot.updated,
-                            result.snapshot.text, askFirst = false
+                            SolarisFeed.textForAi(result.snapshot), askFirst = false
                         )
                     }
                     is SolarisFeed.FetchResult.Failure -> {
@@ -704,7 +704,7 @@ class MainActivity : Activity() {
                         if (cached != null) {
                             presentSolaris(
                                 traceId, SolarisFeed.summaryId(cached), cached.updated,
-                                cached.text, askFirst = false
+                                SolarisFeed.textForAi(cached), askFirst = false
                             )
                         }
                     }

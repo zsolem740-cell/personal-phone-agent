@@ -38,7 +38,9 @@ class ReminderReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .build()
 
-        val posted = try {
+        // Letiltott értesítésnél a notify() csendben elnyelődik. Ilyenkor az emlékeztető
+        // a tárolóban marad, és az app következő megnyitásakor a csevegésben jelenik meg.
+        val posted = NotificationGate.canPost(manager, CHANNEL_ID) && try {
             manager.notify(id, notification)
             true
         } catch (_: SecurityException) {
