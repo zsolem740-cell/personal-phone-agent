@@ -172,7 +172,7 @@
     <string name="drawer_footnote">Az AI-motor beépítve: beszélgess, kérdezz, vagy vezesd vele a telefont.</string>
     <string name="chat_open">Megnyitás ▸</string>
 
-    <string name="ai_model_help">Modellnév-példák: Google: gemini-4-hydrogen, gemini-3.8-flash • OpenAI: gpt-6-luna • Anthropic: claude-sonnet-5-5. A nevet pontosan, kisbetűvel kell megadni.</string>
+    <string name="ai_model_help">Ajánlott a lista első modellje. Más modellhez válaszd az „Egyéni modellnév” pontot, és írd be a pontos nevet kisbetűvel.</string>
     <string name="ai_test_button">Kapcsolat tesztelése</string>
     <string name="ai_test_running">Tesztelés folyamatban…</string>
     <string name="ai_test_no_key">Előbb add meg az API-kulcsot a teszteléshez.</string>
@@ -237,4 +237,22 @@
     <string name="tts_init_failed">Nem sikerült elindítani a szövegfelolvasó motort. Állíts be felolvasó motort a telefon beállításaiban (Szövegfelolvasás).</string>
     <string name="tts_no_hungarian">A telefon felolvasó motorja nem tud magyarul. Válaszd a Google beszédszolgáltatást, és töltsd le hozzá a magyar hangot.</string>
     <string name="tts_open_settings">Beállítások megnyitása</string>
+    <string name="ai_settings_model">Modell</string>
+    <string name="ai_model_custom">Egyéni modellnév…</string>
+    <string name="diag_share_log">Napló megosztása</string>
+    <string name="diag_share_title">Napló megosztása</string>
+    <string name="diag_share_question">A napló egy fájlként a telefonról a kiválasztott alkalmazásba kerül (például e-mail vagy Drive). Csak időpontokat, eseményeket, hibakódokat, karakterszámokat és a modell nevét tartalmazza, API-kulcsot és üzenetszöveget nem. Megosztod?</string>
+    <string name="diag_share_chooser">Napló megosztása</string>
+    <string name="diag_share_failed">A napló megosztása nem sikerült.</string>
+    <string name="diag_share_empty">A napló üres, nincs mit megosztani.</string>
+    <string name="diag_share_header">Telefonasszisztens %1$s – Solaris-kapcsolati napló (%2$s), legfeljebb %3$d bejegyzés, a legújabb elöl</string>
+    <string name="diag_notifications">Értesítések állapota</string>
+    <string name="notif_title">Az értesítések ki vannak kapcsolva</string>
+    <string name="notif_off_message">Az app értesítései (vagy a Solaris-, illetve az emlékeztető-csatorna) le vannak tiltva, ezért a Solaris-figyelmeztetések és az emlékeztetők nem jelennek meg. Az elmaradt emlékeztetőket az app megnyitásakor a csevegésben látod.</string>
+    <string name="notif_on_title">Értesítések</string>
+    <string name="notif_on_message">Az értesítések be vannak kapcsolva: a Solaris-figyelmeztetések és az emlékeztetők megjelennek.</string>
+    <string name="notif_open_settings">Beállítások megnyitása</string>
+    <string name="notif_later">Később</string>
+    <string name="notif_never">Ne jelezd többet</string>
+    <string name="notif_settings_missing">Nem sikerült megnyitni az értesítési beállításokat.</string>
 </resources>

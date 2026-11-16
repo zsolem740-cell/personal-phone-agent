@@ -54,11 +54,23 @@ object AIClient {
 
     class AiException(val userMessage: String, cause: Throwable? = null) : Exception(userMessage, cause)
 
-    fun defaultModel(provider: String): String = when (provider) {
-        PROVIDER_OPENAI -> "gpt-6-luna"
-        PROVIDER_GEMINI -> "gemini-4-hydrogen"
-        else -> "claude-sonnet-5-5"
+    /**
+     * A választólista modelljei szolgáltatónként, az ajánlott elöl. A nevek a szolgáltatók
+     * modelllistáiból származnak (2026. november); más név az „Egyéni modellnév” ponttal adható meg.
+     */
+    fun modelsFor(provider: String): List<String> = when (provider) {
+        PROVIDER_OPENAI -> listOf("gpt-6-luna")
+        PROVIDER_GEMINI -> listOf(
+            "gemini-3.5-flash-lite",
+            "gemini-3.8-flash",
+            "gemini-3.6-flash",
+            "gemini-3.1-flash-lite",
+            "gemini-4-hydrogen"
+        )
+        else -> listOf("claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5")
     }
+
+    fun defaultModel(provider: String): String = modelsFor(provider).first()
 
     fun loadConfig(context: Context): Config? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

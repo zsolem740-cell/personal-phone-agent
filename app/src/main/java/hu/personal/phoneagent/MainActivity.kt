@@ -81,6 +81,7 @@ class MainActivity : Activity() {
     private var speakEnabled = false
     private lateinit var preferences: SharedPreferences
     private var pendingCallName: String? = null
+    private var notificationRequestPending = false
 
     private val clockHandler = Handler(Looper.getMainLooper())
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -217,6 +218,8 @@ class MainActivity : Activity() {
         updateClock()
         updateMetrics()
         clockHandler.postDelayed(clockRunnable, CLOCK_INTERVAL_MS)
+        // Az engedélykérő ablak közben ne szóljunk; a válasz után úgyis ellenőrizzük.
+        if (!notificationRequestPending) maybeWarnNotificationsOff()
     }
 
     override fun onPause() {
@@ -260,6 +263,11 @@ class MainActivity : Activity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_NOTIFICATIONS) {
+            notificationRequestPending = false
+            maybeWarnNotificationsOff()
+            return
+        }
         if (requestCode == REQUEST_AUDIO) {
             if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
                 startInAppRecognizer()
@@ -293,6 +301,7 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
+            notificationRequestPending = true
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
         }
     }
@@ -849,6 +858,40 @@ class MainActivity : Activity() {
         val providerSpinner = view.findViewById<Spinner>(R.id.ai_provider)
         val keyInput = view.findViewById<EditText>(R.id.ai_key)
         val modelInput = view.findViewById<EditText>(R.id.ai_model)
+        val modelSpinner = view.findViewById<Spinner>(R.id.ai_model_choice)
+        val customLabel = getString(R.string.ai_model_custom)
+        var currentModels: List<String> = emptyList()
+
+        // A listából választott modell beírja a nevet; az „Egyéni modellnév” pont a szövegmezőt mutatja.
+        fun fillModels(provider: String, selected: String) {
+            currentModels = AIClient.modelsFor(provider)
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, currentModels + customLabel)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            modelSpinner.adapter = adapter
+            val index = currentModels.indexOf(selected)
+            modelInput.setText(selected)
+            if (index >= 0) {
+                modelSpinner.setSelection(index)
+                modelInput.visibility = View.GONE
+            } else {
+                modelSpinner.setSelection(currentModels.size)
+                modelInput.visibility = View.VISIBLE
+            }
+        }
+
+        modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, selectedView: View?, position: Int, id: Long) {
+                if (position < currentModels.size) {
+                    modelInput.setText(currentModels[position])
+                    modelInput.visibility = View.GONE
+                } else {
+                    if (modelInput.text.toString().trim() in currentModels) modelInput.setText("")
+                    modelInput.visibility = View.VISIBLE
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         val providerKeys = listOf(
             AIClient.PROVIDER_ANTHROPIC,
@@ -868,7 +911,7 @@ class MainActivity : Activity() {
         val initialProvider = existing?.provider ?: AIClient.PROVIDER_ANTHROPIC
         providerSpinner.setSelection(providerKeys.indexOf(initialProvider).coerceAtLeast(0))
         keyInput.setText(existing?.apiKey ?: "")
-        modelInput.setText(existing?.model ?: AIClient.defaultModel(initialProvider))
+        fillModels(initialProvider, existing?.model ?: AIClient.defaultModel(initialProvider))
 
         var firstSelection = true
         providerSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -884,7 +927,8 @@ class MainActivity : Activity() {
                     firstSelection = false
                     return
                 }
-                modelInput.setText(AIClient.defaultModel(providerKeys[position]))
+                val provider = providerKeys[position]
+                fillModels(provider, AIClient.defaultModel(provider))
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -949,6 +993,8 @@ class MainActivity : Activity() {
         val items = arrayOf(
             getString(R.string.diag_view_log),
             getString(R.string.diag_export_log),
+            getString(R.string.diag_share_log),
+            getString(R.string.diag_notifications),
             getString(R.string.diag_delete_logs)
         )
         AlertDialog.Builder(this)
@@ -957,7 +1003,9 @@ class MainActivity : Activity() {
                 when (which) {
                     0 -> showConnectionLog()
                     1 -> startLogExport()
-                    2 -> confirmDeleteLogs()
+                    2 -> confirmShareLog()
+                    3 -> showNotificationStatus()
+                    4 -> confirmDeleteLogs()
                 }
             }
             .setNegativeButton(getString(R.string.diag_close), null)
@@ -1008,6 +1056,112 @@ class MainActivity : Activity() {
                 showToast(
                     getString(if (ok) R.string.diag_export_done else R.string.diag_export_failed)
                 )
+            }
+        }
+    }
+
+    /** Napló megosztása fájlként, csak kifejezett jóváhagyás után. */
+    private fun appVersionName(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()
+
+    private fun confirmShareLog() {
+        confirmAction(
+            getString(R.string.diag_share_title),
+            getString(R.string.diag_share_question)
+        ) { shareLog() }
+    }
+
+    private fun shareLog() {
+        IntegrationLog.readRecent(SHARE_LOG_LIMIT) { lines ->
+            // Háttérszálon fut: itt írjuk a fájlt, a megosztást a fő szálon indítjuk.
+            val file = if (lines.isEmpty()) null else try {
+                val dir = LogShareProvider.dir(this)
+                dir.mkdirs()
+                dir.listFiles()?.forEach { it.delete() }
+                val today = LocalDate.now()
+                val out = java.io.File(dir, LogShareProvider.fileName(today))
+                val header = getString(
+                    R.string.diag_share_header, appVersionName(), today.toString(), SHARE_LOG_LIMIT
+                )
+                out.writeText(header + "\n\n" + IntegrationLogFormatter.format(this, lines) + "\n", Charsets.UTF_8)
+                out
+            } catch (e: Exception) {
+                CrashReporter.recordHandled(this, "shareLog", e)
+                null
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                when {
+                    lines.isEmpty() -> showToast(getString(R.string.diag_share_empty))
+                    file == null -> showToast(getString(R.string.diag_share_failed))
+                    else -> {
+                        val uri = LogShareProvider.uriFor(file)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            putExtra(Intent.EXTRA_SUBJECT, file.name)
+                            clipData = android.content.ClipData.newRawUri(file.name, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        try {
+                            startActivity(Intent.createChooser(send, getString(R.string.diag_share_chooser)))
+                        } catch (_: ActivityNotFoundException) {
+                            showToast(getString(R.string.diag_share_failed))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Értesítési engedély jelzése
+    // ------------------------------------------------------------------
+
+    /** Naponta legfeljebb egyszer szól, ha az értesítések le vannak tiltva. */
+    private fun maybeWarnNotificationsOff() {
+        if (NotificationGate.allAllowed(this)) return
+        val prefs = getSharedPreferences(UI_PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_NOTIF_NEVER, false)) return
+        val today = LocalDate.now().toString()
+        if (prefs.getString(KEY_NOTIF_WARNED_DAY, null) == today) return
+        prefs.edit().putString(KEY_NOTIF_WARNED_DAY, today).apply()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.notif_title))
+            .setMessage(getString(R.string.notif_off_message))
+            .setPositiveButton(getString(R.string.notif_open_settings)) { _, _ -> openNotificationSettings() }
+            .setNeutralButton(getString(R.string.notif_never)) { _, _ ->
+                prefs.edit().putBoolean(KEY_NOTIF_NEVER, true).apply()
+            }
+            .setNegativeButton(getString(R.string.notif_later), null)
+            .show()
+    }
+
+    /** A Diagnosztika menüből: mindig megmutatja az állapotot. */
+    private fun showNotificationStatus() {
+        val allowed = NotificationGate.allAllowed(this)
+        val builder = AlertDialog.Builder(this)
+            .setTitle(getString(if (allowed) R.string.notif_on_title else R.string.notif_title))
+            .setMessage(getString(if (allowed) R.string.notif_on_message else R.string.notif_off_message))
+            .setNegativeButton(getString(R.string.diag_close), null)
+        if (!allowed) {
+            builder.setPositiveButton(getString(R.string.notif_open_settings)) { _, _ -> openNotificationSettings() }
+        }
+        builder.show()
+    }
+
+    private fun openNotificationSettings() {
+        val appNotifications = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+        val appDetails = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", packageName, null))
+        try {
+            startActivity(appNotifications)
+        } catch (_: ActivityNotFoundException) {
+            try {
+                startActivity(appDetails)
+            } catch (_: ActivityNotFoundException) {
+                showToast(getString(R.string.notif_settings_missing))
             }
         }
     }
@@ -1563,6 +1717,10 @@ class MainActivity : Activity() {
         private const val REQUEST_CONTACTS = 1002
         private const val REQUEST_NOTIFICATIONS = 1003
         private const val REQUEST_EXPORT_LOG = 1004
+        private const val SHARE_LOG_LIMIT = 1000
+        private const val UI_PREFS = "ui_state"
+        private const val KEY_NOTIF_WARNED_DAY = "notif_warned_day"
+        private const val KEY_NOTIF_NEVER = "notif_never"
         private const val REQUEST_AUDIO = 1005
         private const val SOLARIS_MAX_CHARS = 50_000
         private const val DIAG_LOG_LIMIT = 100

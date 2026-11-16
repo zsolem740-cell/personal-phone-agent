@@ -26,6 +26,19 @@
         android:importantForAutofill="no"
         android:inputType="textPassword" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/ai_settings_model"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp" />
+
+    <Spinner
+        android:id="@+id/ai_model_choice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
     <EditText
         android:id="@+id/ai_model"
         android:layout_width="match_parent"
