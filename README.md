@@ -40,6 +40,8 @@ a keret (csendes-óceáni éjfél, a telefon időzónájában megadva).
 - Az értesítésre koppintás, a menü Solaris-pontja vagy a Solaris oldalról megosztott szöveg
   indítja az AI-értelmezést. Az adat életkorát az értelmezés pillanatában számolja:
   3 óra felett figyelmeztet, 24 óra felett nem tekinti aktuálisnak.
+- Ugyanarra az adatra (és ugyanazzal a modellel) nem kér új AI-választ, hanem a mentett
+  értelmezést mutatja. Mivel a Solaris óránként frissül, óránként legfeljebb egy AI-kérés megy el.
 - A helyi integrációs napló a telefonon marad. A Diagnosztika menüből fájlba exportálható,
   vagy jóváhagyás után fájlként megosztható (csak időpontok, események, hibakódok,
   karakterszámok és a modell neve; kulcs és üzenetszöveg nincs benne).
