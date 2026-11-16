@@ -768,6 +768,16 @@ class MainActivity : Activity() {
             appendAssistant(getString(R.string.solaris_share_no_ai))
             return
         }
+        // Ugyanarra az adatra nem kérünk új AI-választ: a keret így nem fogy feleslegesen.
+        val cached = SolarisAiCache.hit(
+            SolarisAiCache.load(this),
+            SolarisAiCache.key(config.provider, config.model, text)
+        )
+        if (cached != null) {
+            val at = SimpleDateFormat("HH:mm", Locale.forLanguageTag("hu-HU")).format(Date(cached.savedAtMillis))
+            appendAssistant(getString(R.string.solaris_cached_result, at, cached.text))
+            return
+        }
         if (!askFirst) {
             IntegrationLog.record(
                 traceId, IntegrationLog.Event.AI_APPROVED, IntegrationLog.Status.OK,
@@ -841,7 +851,17 @@ class MainActivity : Activity() {
             setOrbState(OrbState.IDLE)
             // Csak megjelenítjük: az AI válaszából itt soha nem indul parancs vagy művelet.
             when (result) {
-                is AIClient.AiResult.Success -> appendAssistant(getString(R.string.solaris_share_result, result.text))
+                is AIClient.AiResult.Success -> {
+                    SolarisAiCache.save(
+                        this,
+                        SolarisAiCache.Entry(
+                            SolarisAiCache.key(config.provider, config.model, text),
+                            System.currentTimeMillis(),
+                            result.text
+                        )
+                    )
+                    appendAssistant(getString(R.string.solaris_share_result, result.text))
+                }
                 is AIClient.AiResult.Error -> appendAssistant(getString(R.string.solaris_share_failed, result.message))
             }
         }
