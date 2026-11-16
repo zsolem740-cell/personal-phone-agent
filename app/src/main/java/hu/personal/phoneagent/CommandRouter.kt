@@ -36,9 +36,10 @@ sealed class Command {
 
 object CommandRouter {
     fun parse(text: String): Command {
-        val normalized = text.trim().lowercase(Locale.ROOT)
-            .replace(Regex("\\s+"), " ")
-            .trimEnd('?', '.', '!')
+        // Az egyezéshez kisbetűs, írásjel nélküli alakot használunk, a tartalomhoz
+        // (jegyzet, emlékeztető, keresés, név) viszont az eredeti írásmódot.
+        val original = text.trim().replace(Regex("\\s+"), " ")
+        val normalized = original.lowercase(Locale.ROOT).trimEnd('?', '.', '!')
         return when (normalized) {
             "" -> Command.Empty
             "szia", "hello", "helló" -> Command.Greeting
@@ -62,71 +63,67 @@ object CommandRouter {
             "jegyzetek törlése", "jegyzetek torlese" -> Command.NotesClear
             "emlékeztetők", "emlekeztetok" -> Command.RemindersList
             "emlékeztetők törlése", "emlekeztetok torlese" -> Command.RemindersClear
-            else -> reminderQuery(normalized)
-                ?: callQuery(normalized)
-                ?: noteQuery(normalized)
-                ?: searchQuery(normalized)
+            else -> reminderQuery(original)
+                ?: callQuery(original)
+                ?: noteQuery(original)
+                ?: searchQuery(original)
                 ?: Command.Unknown
         }
     }
 
-    private fun reminderQuery(normalized: String): Command? {
-        for (prefix in listOf("emlékeztess ", "emlekeztess ", "emlékeztess:", "emlekeztess:")) {
-            if (!normalized.startsWith(prefix)) continue
-            val rest = normalized.removePrefix(prefix).trim()
-
-            val relativeMinutes = Regex("^(\\d{1,3})\\s*perc\\s*(múlva|mulva)\\s+(.+)$").find(rest)
-            if (relativeMinutes != null) {
-                val minutes = relativeMinutes.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
-                return Command.ReminderIn(minutes * 60_000L, relativeMinutes.groupValues[3])
-            }
-
-            val relativeHours = Regex("^(\\d{1,2})\\s*(óra|ora)\\s*(múlva|mulva)\\s+(.+)$").find(rest)
-            if (relativeHours != null) {
-                val hours = relativeHours.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
-                return Command.ReminderIn(hours * 3_600_000L, relativeHours.groupValues[4])
-            }
-
-            val absolute = Regex("^(\\d{1,2}):(\\d{2})\\s+(.+)$").find(rest)
-            if (absolute != null) {
-                val hour = absolute.groupValues[1].toIntOrNull()
-                val minute = absolute.groupValues[2].toIntOrNull()
-                if (hour != null && minute != null && hour in 0..23 && minute in 0..59) {
-                    return Command.ReminderAt(hour, minute, absolute.groupValues[3])
-                }
-            }
-            return Command.ReminderUsage
-        }
-        return null
-    }
-
-    private fun callQuery(normalized: String): Command.Call? {
-        for (prefix in listOf("hívd fel ", "hivd fel ")) {
-            if (normalized.startsWith(prefix)) {
-                val name = normalized.removePrefix(prefix).trim()
-                if (name.isNotEmpty()) return Command.Call(name)
+    /** Kis- és nagybetűtől független előtag; a maradékot eredeti írásmóddal adja vissza. */
+    private fun afterPrefix(original: String, prefixes: List<String>): String? {
+        for (prefix in prefixes) {
+            if (original.startsWith(prefix, ignoreCase = true)) {
+                return original.substring(prefix.length).trim()
             }
         }
         return null
     }
 
-    private fun noteQuery(normalized: String): Command.Note? {
-        for (prefix in listOf("jegyzetelj ", "jegyzetelj:", "jegyzet: ")) {
-            if (normalized.startsWith(prefix)) {
-                val note = normalized.removePrefix(prefix).trim()
-                if (note.isNotEmpty()) return Command.Note(note)
+    private val reminderMinutes = Regex("^(\\d{1,3})\\s*perc\\s*(múlva|mulva)\\s+(.+)$", RegexOption.IGNORE_CASE)
+    private val reminderHours = Regex("^(\\d{1,2})\\s*(óra|ora)\\s*(múlva|mulva)\\s+(.+)$", RegexOption.IGNORE_CASE)
+    private val reminderClock = Regex("^(\\d{1,2}):(\\d{2})\\s+(.+)$")
+
+    private fun reminderQuery(original: String): Command? {
+        val rest = afterPrefix(original, listOf("emlékeztess ", "emlekeztess ", "emlékeztess:", "emlekeztess:"))
+            ?: return null
+
+        val relativeMinutes = reminderMinutes.find(rest)
+        if (relativeMinutes != null) {
+            val minutes = relativeMinutes.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
+            return Command.ReminderIn(minutes * 60_000L, relativeMinutes.groupValues[3])
+        }
+
+        val relativeHours = reminderHours.find(rest)
+        if (relativeHours != null) {
+            val hours = relativeHours.groupValues[1].toLongOrNull() ?: return Command.ReminderUsage
+            return Command.ReminderIn(hours * 3_600_000L, relativeHours.groupValues[4])
+        }
+
+        val absolute = reminderClock.find(rest)
+        if (absolute != null) {
+            val hour = absolute.groupValues[1].toIntOrNull()
+            val minute = absolute.groupValues[2].toIntOrNull()
+            if (hour != null && minute != null && hour in 0..23 && minute in 0..59) {
+                return Command.ReminderAt(hour, minute, absolute.groupValues[3])
             }
         }
-        return null
+        return Command.ReminderUsage
     }
 
-    private fun searchQuery(normalized: String): Command.Search? {
-        for (prefix in listOf("keresés ", "kereses ", "keress ")) {
-            if (normalized.startsWith(prefix)) {
-                val query = normalized.removePrefix(prefix).trim()
-                if (query.isNotEmpty()) return Command.Search(query)
-            }
-        }
-        return null
+    private fun callQuery(original: String): Command.Call? {
+        val name = afterPrefix(original, listOf("hívd fel ", "hivd fel "))?.trimEnd('?', '.', '!')?.trim()
+        return if (name.isNullOrEmpty()) null else Command.Call(name)
+    }
+
+    private fun noteQuery(original: String): Command.Note? {
+        val note = afterPrefix(original, listOf("jegyzetelj ", "jegyzetelj:", "jegyzet: "))
+        return if (note.isNullOrEmpty()) null else Command.Note(note)
+    }
+
+    private fun searchQuery(original: String): Command.Search? {
+        val query = afterPrefix(original, listOf("keresés ", "kereses ", "keress "))
+        return if (query.isNullOrEmpty()) null else Command.Search(query)
     }
 }
