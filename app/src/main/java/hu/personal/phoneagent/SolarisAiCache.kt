@@ -15,8 +15,9 @@ object SolarisAiCache {
 
     /** A küldött adat, a szolgáltató és a modell ujjlenyomata. */
     fun key(provider: String, model: String, sourceText: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest("$provider\n$model\n$sourceText".toByteArray(Charsets.UTF_8))
+        // Hosszelőtagos összefűzés: a részek határa nem csúszhat el (pl. sortörés a modellnévben).
+        val joined = listOf(provider, model, sourceText).joinToString("") { "${it.length}:$it;" }
+        val digest = MessageDigest.getInstance("SHA-256").digest(joined.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 
